@@ -4,8 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"flag"
-	"os"
-	"path/filepath"
+
 	"strconv"
 	"strings"
 	"time"
@@ -186,11 +185,8 @@ func (self *ResMan) OnDisconnected(driver *mesos.SchedulerDriver) {
 }
 
 func (self *ResMan) Run() {
-	localExecutor, _ := executorPath()
-	log.Debug(localExecutor)
-
 	master := flag.String("master", "localhost:5050", "Location of leading Mesos master")
-	executorUri := flag.String("executor-uri", localExecutor, "URI of executor executable")
+	executorUri := flag.String("executor-uri", "", "URI of executor executable")
 	flag.Parse()
 
 	self.executor = &mesos.ExecutorInfo{
@@ -226,14 +222,4 @@ func (self *ResMan) Run() {
 	driver.Start()
 	<-self.exit
 	driver.Stop(false)
-}
-
-func executorPath() (string, error) {
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		return "", err
-	}
-
-	path := dir + "/example_executor"
-	return path, nil
 }
