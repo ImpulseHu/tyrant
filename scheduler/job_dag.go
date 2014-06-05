@@ -118,15 +118,7 @@ func (d *DagMeta) AddDagJob(j *DagJob) error {
 		return err
 	}
 
-	exist := false
-	for _, job := range dagJobs {
-		if job.JobName == j.JobName {
-			exist = true
-			break
-		}
-	}
-
-	if exist {
+	if len(dagJobs) > 0 {
 		return fmt.Errorf("job %s already exist", j.JobName)
 	}
 

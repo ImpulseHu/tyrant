@@ -125,9 +125,15 @@ func addDagJob(w http.ResponseWriter, r *http.Request) {
 			response(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		(&job).Save()
-		dag.AddDagJob(&job)
+		err = dag.AddDagJob(&job)
+		if err != nil {
+			response(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		return
 	}
+
+	response(w, http.StatusBadRequest, name+" not exist")
 }
 
 func removeDagJob(w http.ResponseWriter, r *http.Request) {

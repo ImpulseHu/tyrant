@@ -84,11 +84,12 @@ func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mes
 		td.Dag.ExportDot(td.DagName + ".dot")
 		ts := td.GetReadyTask() //todo:make sure schedule time is match
 		if len(ts) == 0 {
+			log.Debugf("no ready task in %s", td.DagName)
 			driver.DeclineOffer(offer.Id)
-			return
+			continue
 		}
 
-		log.Debugf("%+v", ts)
+		log.Debugf("ready tasks:%+v", ts)
 
 		//todo:check if schedule time is match
 		self.taskId++
@@ -137,28 +138,34 @@ func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mes
 	}
 }
 
+func (self *ResMan) removeTask(ti *TyrantTaskId) {
+	td := self.s.GetTaskDag(ti.DagName)
+	td.RemoveTask(ti.TaskName)
+	self.s.SetTaskDagStateReady(ti.DagName)
+
+	if td.Dag.Empty() {
+		log.Debugf("task in dag %s is empty, remove it", td.DagName)
+		self.s.RemoveTaskDag(td.DagName)
+		return
+	}
+}
+
 func (self *ResMan) OnStatusUpdate(driver *mesos.SchedulerDriver, status mesos.TaskStatus) {
 	taskId := *status.TaskId
 	ti := decodeTaskId(*taskId.Value)
 	log.Debugf("Received task %+v status: %+v", ti, status)
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED:
-		td := self.s.GetTaskDag(ti.DagName)
-		td.RemoveTask(ti.TaskName)
-		if td.Dag.Empty() {
-			log.Debugf("task in dag %s is empty", td.DagName)
-			self.s.RemoveTaskDag(td.DagName)
-			return
-		}
-
-		self.s.SetTaskDagStateReady(ti.DagName)
-		//todo:remove from task
+		self.removeTask(ti)
 	case mesos.TaskState_TASK_FAILED:
 		//todo: retry
+		self.removeTask(ti)
 	case mesos.TaskState_TASK_KILLED:
 		//todo:
+		self.removeTask(ti)
 	case mesos.TaskState_TASK_LOST:
 		//todo:
+		self.removeTask(ti)
 	case mesos.TaskState_TASK_STAGING:
 		//todo: update something
 	case mesos.TaskState_TASK_STARTING:

@@ -155,7 +155,8 @@ func (self *TaskScheduler) RemoveTaskDag(name string) {
 
 func (self *TaskScheduler) GetReadyDag() *TaskDag {
 	for _, td := range self.tds {
-		if td.state == taskReady {
+		log.Debugf("checking dag %+v if ready", td)
+		if td.state == taskReady && !td.Dag.Empty() {
 			return td
 		}
 	}
@@ -185,8 +186,12 @@ func (self *TaskScheduler) Refresh() {
 	metas := GetDagMetaList()
 	for _, meta := range metas {
 		m := meta
-		if _, ok := self.tds[m.Name]; ok { //already exist
-			continue
+		if td, ok := self.tds[m.Name]; ok { //already exist
+			if !td.Dag.Empty() {
+				continue
+			}
+
+			self.RemoveTaskDag(td.DagName)
 		}
 
 		td := NewTaskDag(m.Name, &m)
