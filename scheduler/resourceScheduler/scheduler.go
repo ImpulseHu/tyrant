@@ -1,6 +1,7 @@
 package resourceScheduler
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"os"
@@ -33,13 +34,28 @@ type TyrantTaskId struct {
 }
 
 func genTaskId(dagName string, taskName string) string {
-	if str, err := json.Marshal(TyrantTaskId{DagName: dagName, TaskName: taskName}); err != nil {
+	if buf, err := json.Marshal(TyrantTaskId{DagName: dagName, TaskName: taskName}); err != nil {
 		log.Fatal(err)
 	} else {
-		return string(str)
+		return base64.StdEncoding.EncodeToString(buf)
 	}
 
 	return ""
+}
+
+func decodeTaskId(str string) *TyrantTaskId {
+	data, err := base64.StdEncoding.DecodeString(str)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var ti TyrantTaskId
+	err = json.Unmarshal(data, &ti)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return &ti
 }
 
 func splitTrim(s string) []string {
@@ -85,15 +101,16 @@ func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mes
 		}
 
 		//todo: set dag state to running
-		//self.executor.Command.Value = proto.String("./example_executor" + job.Command)
+		self.executor.Command.Value = proto.String(job.Command)
 		self.executor.ExecutorId = &mesos.ExecutorID{Value: proto.String("tyrantExecutorId_" + strconv.Itoa(self.taskId) + strconv.Itoa(time.Now().Day()))}
-		//log.Debug(job.Command, *self.executor.Command.Value)
+		log.Debug(job.Command, *self.executor.Command.Value)
 
 		urls := splitTrim(job.Uris)
 		taskUris := make([]*mesos.CommandInfo_URI, len(urls))
 		for i, _ := range urls {
 			taskUris[i] = &mesos.CommandInfo_URI{Value: &urls[i]}
 		}
+		self.executor.Command.Uris = taskUris
 
 		tasks := []mesos.TaskInfo{
 			mesos.TaskInfo{
@@ -101,12 +118,12 @@ func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mes
 				TaskId: &mesos.TaskID{
 					Value: proto.String(genTaskId(td.DagName, ts[0].Name)),
 				},
-				SlaveId: offer.SlaveId,
-				//Executor: self.executor,
-				Command: &mesos.CommandInfo{
-					Value: proto.String(job.Command),
-					Uris:  taskUris,
-				},
+				SlaveId:  offer.SlaveId,
+				Executor: self.executor,
+				//	Command: &mesos.CommandInfo{
+				//		Value: proto.String(job.Command),
+				//		Uris:  taskUris,
+				//	},
 				Resources: []*mesos.Resource{
 					mesos.ScalarResource("cpus", 1),
 					mesos.ScalarResource("mem", 512),
@@ -122,14 +139,10 @@ func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mes
 
 func (self *ResMan) OnStatusUpdate(driver *mesos.SchedulerDriver, status mesos.TaskStatus) {
 	taskId := *status.TaskId
-	log.Debugf("Received task status: %+v", status)
+	ti := decodeTaskId(*taskId.Value)
+	log.Debugf("Received task %+v status: %+v", ti, status)
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED:
-		var ti TyrantTaskId
-		err := json.Unmarshal([]byte(*taskId.Value), &ti)
-		if err != nil {
-			log.Fatal(err)
-		}
 		td := self.s.GetTaskDag(ti.DagName)
 		td.RemoveTask(ti.TaskName)
 		if td.Dag.Empty() {
