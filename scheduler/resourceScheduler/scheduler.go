@@ -85,9 +85,9 @@ func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mes
 		}
 
 		//todo: set dag state to running
-		self.executor.Command.Value = proto.String("./example_executor")
+		//self.executor.Command.Value = proto.String("./example_executor" + job.Command)
 		self.executor.ExecutorId = &mesos.ExecutorID{Value: proto.String("tyrantExecutorId_" + strconv.Itoa(self.taskId) + strconv.Itoa(time.Now().Day()))}
-		log.Debug(job.Command, *self.executor.Command.Value)
+		//log.Debug(job.Command, *self.executor.Command.Value)
 
 		urls := splitTrim(job.Uris)
 		taskUris := make([]*mesos.CommandInfo_URI, len(urls))

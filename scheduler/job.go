@@ -1,5 +1,9 @@
 package scheduler
 
+import (
+	log "github.com/ngaut/logging"
+)
+
 type Job struct {
 	Id            int64  `db:"id" json:"id"`
 	Name          string `db:"name" json:"name"`       // 512, unique
@@ -32,14 +36,16 @@ func GetJobList() []Job {
 }
 
 func JobExists(name string) bool {
-	var cnt int
-	err := sharedDbMap.SelectOne(&cnt, "select count(*) from jobs where name=?", name)
+	j, err := GetJobByName(name)
 	if err != nil {
+		log.Error(err, name)
 		return false
 	}
-	if cnt <= 1 {
+
+	if j.Id == 0 {
 		return false
 	}
+
 	return true
 }
 

@@ -3,9 +3,10 @@ package scheduler
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	_ "net/http/pprof"
+
+	log "github.com/ngaut/logging"
 )
 
 type Server struct {
@@ -30,6 +31,7 @@ func jobsListHandler(w http.ResponseWriter, r *http.Request) {
 func updateJobHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	name := r.FormValue("name")
+	log.Debug(name)
 
 	if JobExists(name) {
 		b, err := ioutil.ReadAll(r.Body)
