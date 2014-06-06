@@ -153,7 +153,7 @@ func (self *TaskScheduler) RemoveTaskDag(name string) {
 	//todo: may be need to clean up running tasks
 }
 
-func (self *TaskScheduler) GetReadyDag() []*TaskDag {
+func (self *TaskScheduler) GetReadyDags() []*TaskDag {
 	var tds []*TaskDag
 	for _, td := range self.tds {
 		log.Debugf("checking dag %+v if ready", td)
@@ -183,10 +183,19 @@ func (self *TaskScheduler) SetTaskDagStateReady(name string) {
 	td.state = taskReady
 }
 
-func (self *TaskScheduler) Refresh() {
-	metas := GetDagMetaList()
-	for _, meta := range metas {
-		m := meta
+func (self *TaskScheduler) getDagMetasByNames(names []string) []*DagMeta {
+	metas := make([]*DagMeta, 0)
+	for _, name := range names {
+		dm := GetDagFromName(name)
+		metas = append(metas, dm)
+	}
+
+	return metas
+}
+
+func (self *TaskScheduler) Refresh(dagNames []string) {
+	metas := self.getDagMetasByNames(dagNames)
+	for _, m := range metas {
 		if td, ok := self.tds[m.Name]; ok { //already exist
 			if !td.Dag.Empty() {
 				continue
@@ -195,7 +204,7 @@ func (self *TaskScheduler) Refresh() {
 			self.RemoveTaskDag(td.DagName)
 		}
 
-		td := NewTaskDag(m.Name, &m)
+		td := NewTaskDag(m.Name, m)
 		tmp := m.GetDagJobs()
 		log.Debugf("add dagMeta: %+v, jobs:%+v", m, tmp)
 		jobs := make([]*DagJob, len(tmp))

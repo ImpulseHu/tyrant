@@ -21,10 +21,13 @@ type ResMan struct {
 	executor *mesos.ExecutorInfo
 	exit     chan bool
 	taskId   int
+	readyDag chan string
 }
 
 func NewResMan() *ResMan {
-	return &ResMan{s: scheduler.NewTaskScheduler(), exit: make(chan bool)}
+	return &ResMan{s: scheduler.NewTaskScheduler(), exit: make(chan bool),
+		readyDag: make(chan string, 1000),
+	}
 }
 
 type TyrantTaskId struct {
@@ -78,8 +81,27 @@ func (self *ReadyTask) String() string {
 	return self.td.DagName + ":  " + fmt.Sprintf("%+v", self.Task)
 }
 
+func (self *ResMan) OnStartReady(dagName string) {
+	self.readyDag <- dagName
+}
+
+func (self *ResMan) getReadyDags() []*scheduler.TaskDag {
+	dagNames := make([]string, 0)
+	for {
+		select {
+		case dagName := <-self.readyDag:
+			dagNames = append(dagNames, dagName)
+		default:
+			break
+		}
+	}
+
+	self.s.Refresh(dagNames)
+	return self.s.GetReadyDags()
+}
+
 func (self *ResMan) getReadyTasks() []*ReadyTask {
-	tds := self.s.GetReadyDag()
+	tds := self.getReadyDags()
 	log.Debugf("ready dag: %+v", tds)
 	rts := make([]*ReadyTask, 0)
 	//todo:check if schedule time is match
@@ -142,7 +164,6 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 
 func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mesos.Offer) {
 	log.Debug("ResourceOffers")
-	self.s.Refresh()
 	ts := self.getReadyTasks()
 	log.Debugf("ready tasks:%+v", ts)
 	var idx, left int
