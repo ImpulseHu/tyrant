@@ -4,10 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"flag"
+	"fmt"
 
 	"strconv"
 	"strings"
-	"time"
 
 	log "github.com/ngaut/logging"
 
@@ -69,40 +69,44 @@ func splitTrim(s string) []string {
 	return ss
 }
 
-func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mesos.Offer) {
-	log.Debug("ResourceOffers")
-	self.s.Refresh()
-	for _, offer := range offers {
-		td := self.s.GetReadyDag()
-		if td == nil {
-			log.Debug("no ready dag")
-			driver.DeclineOffer(offer.Id)
-			return
-		}
-		log.Debugf("got ready dag: %+v", td)
-		td.Dag.ExportDot(td.DagName + ".dot")
-		ts := td.GetReadyTask() //todo:make sure schedule time is match
-		if len(ts) == 0 {
-			log.Debugf("no ready task in %s", td.DagName)
-			driver.DeclineOffer(offer.Id)
-			continue
-		}
+type ReadyTask struct {
+	*scheduler.Task
+	td *scheduler.TaskDag
+}
 
-		log.Debugf("ready tasks:%+v", ts)
+func (self *ReadyTask) String() string {
+	return self.td.DagName + ":  " + fmt.Sprintf("%+v", self.Task)
+}
 
-		//todo:check if schedule time is match
+func (self *ResMan) getReadyTasks() []*ReadyTask {
+	tds := self.s.GetReadyDag()
+	log.Debugf("ready dag: %+v", tds)
+	rts := make([]*ReadyTask, 0)
+	//todo:check if schedule time is match
+	for _, td := range tds {
+		tasks := td.GetReadyTask()
+		for _, t := range tasks {
+			rts = append(rts, &ReadyTask{Task: t, td: td})
+		}
+	}
+
+	return rts
+}
+
+func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos.Offer,
+	ts []*ReadyTask) (launchCount int) {
+	for i, t := range ts {
 		self.taskId++
-		log.Debugf("Launching task: %d, name:%s\n", self.taskId, ts[0].Name)
-		job, err := scheduler.GetJobByName(ts[0].Name)
+		log.Debugf("Launching task: %d, name:%s\n", self.taskId, t.Name)
+		job, err := scheduler.GetJobByName(ts[i].Name)
 		if err != nil {
 			log.Error(err)
 			driver.DeclineOffer(offer.Id)
 			return
 		}
 
-		//todo: set dag state to running
 		self.executor.Command.Value = proto.String(job.Command)
-		self.executor.ExecutorId = &mesos.ExecutorID{Value: proto.String("tyrantExecutorId_" + strconv.Itoa(self.taskId) + strconv.Itoa(time.Now().Day()))}
+		self.executor.ExecutorId = &mesos.ExecutorID{Value: proto.String("tyrantExecutorId_" + strconv.Itoa(self.taskId))}
 		log.Debug(job.Command, *self.executor.Command.Value)
 
 		urls := splitTrim(job.Uris)
@@ -116,14 +120,10 @@ func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mes
 			mesos.TaskInfo{
 				Name: proto.String("go-task"),
 				TaskId: &mesos.TaskID{
-					Value: proto.String(genTaskId(td.DagName, ts[0].Name)),
+					Value: proto.String(genTaskId(t.td.DagName, t.Name)),
 				},
 				SlaveId:  offer.SlaveId,
 				Executor: self.executor,
-				//	Command: &mesos.CommandInfo{
-				//		Value: proto.String(job.Command),
-				//		Uris:  taskUris,
-				//	},
 				Resources: []*mesos.Resource{
 					mesos.ScalarResource("cpus", 1),
 					mesos.ScalarResource("mem", 512),
@@ -131,9 +131,33 @@ func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mes
 			},
 		}
 
-		self.s.SetTaskDagStateRunning(td.DagName)
+		self.s.SetTaskDagStateRunning(t.td.DagName)
 
 		driver.LaunchTasks(offer.Id, tasks)
+		launchCount++
+	}
+
+	return
+}
+
+func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mesos.Offer) {
+	log.Debug("ResourceOffers")
+	self.s.Refresh()
+	ts := self.getReadyTasks()
+	log.Debugf("ready tasks:%+v", ts)
+	var idx, left int
+
+	for idx = 0; idx < len(offers); idx++ {
+		n := self.runTaskUsingOffer(driver, offers[idx], ts[left:])
+		if n == 0 {
+			break
+		}
+		left += n
+	}
+
+	//decline left offers
+	for i := idx; i < len(offers); i++ {
+		driver.DeclineOffer(offers[i].Id)
 	}
 }
 

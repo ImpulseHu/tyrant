@@ -153,15 +153,16 @@ func (self *TaskScheduler) RemoveTaskDag(name string) {
 	//todo: may be need to clean up running tasks
 }
 
-func (self *TaskScheduler) GetReadyDag() *TaskDag {
+func (self *TaskScheduler) GetReadyDag() []*TaskDag {
+	var tds []*TaskDag
 	for _, td := range self.tds {
 		log.Debugf("checking dag %+v if ready", td)
 		if td.state == taskReady && !td.Dag.Empty() {
-			return td
+			tds = append(tds, td)
 		}
 	}
 
-	return nil
+	return tds
 }
 
 func (self *TaskScheduler) SetTaskDagStateRunning(name string) {
