@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"strings"
 
 	log "github.com/ngaut/logging"
@@ -20,12 +21,12 @@ type TaskDag struct {
 	DagName string
 	Dag     *DGraph
 	state   int
-	dagMeta *DagMeta
+	DagMeta *DagMeta
 }
 
 func NewTaskDag(name string, meta *DagMeta) *TaskDag {
 	td := &TaskDag{DagName: name, Dag: NewDag(), state: taskReady,
-		dagMeta: meta,
+		DagMeta: meta,
 	}
 	log.Debug("create TaskDag", name)
 	return td
@@ -131,17 +132,20 @@ func NewTaskScheduler() *TaskScheduler {
 	return &TaskScheduler{tds: make(map[string]*TaskDag)}
 }
 
-func (self *TaskScheduler) AddTaskDag(td *TaskDag) {
+func (self *TaskScheduler) AddTaskDag(td *TaskDag) error {
 	if len(td.DagName) == 0 {
-		return
+		return fmt.Errorf("dag name can't be blank")
 	}
+
 	if _, ok := self.tds[td.DagName]; ok {
-		return
+		return fmt.Errorf("%s already exist", td.DagName)
 	}
 
 	log.Debugf("AddTaskDag: %+v", td)
 
 	self.tds[td.DagName] = td
+
+	return nil
 }
 
 func (self *TaskScheduler) GetTaskDag(name string) *TaskDag {
@@ -183,35 +187,25 @@ func (self *TaskScheduler) SetTaskDagStateReady(name string) {
 	td.state = taskReady
 }
 
-func (self *TaskScheduler) getDagMetasByNames(names []string) []*DagMeta {
-	metas := make([]*DagMeta, 0)
-	for _, name := range names {
-		dm := GetDagFromName(name)
-		metas = append(metas, dm)
-	}
-
-	return metas
-}
-
-func (self *TaskScheduler) Refresh(dagNames []string) {
-	metas := self.getDagMetasByNames(dagNames)
-	for _, m := range metas {
-		if td, ok := self.tds[m.Name]; ok { //already exist
-			if !td.Dag.Empty() {
-				continue
-			}
-
-			self.RemoveTaskDag(td.DagName)
+func (self *TaskScheduler) TryAddTaskDag(name string) (*TaskDag, error) {
+	m := GetDagFromName(name)
+	if td, ok := self.tds[m.Name]; ok { //already exist
+		if !td.Dag.Empty() {
+			return nil, fmt.Errorf("%s already exist", name)
 		}
 
-		td := NewTaskDag(m.Name, m)
-		tmp := m.GetDagJobs()
-		log.Debugf("add dagMeta: %+v, jobs:%+v", m, tmp)
-		jobs := make([]*DagJob, len(tmp))
-		for i := 0; i < len(jobs); i++ {
-			jobs[i] = &tmp[i]
-		}
-		td.BuildTaskDag(jobs)
-		self.AddTaskDag(td)
+		self.RemoveTaskDag(td.DagName)
 	}
+
+	td := NewTaskDag(m.Name, m)
+	tmp := m.GetDagJobs()
+	log.Debugf("add dagMeta: %+v, jobs:%+v", m, tmp)
+	jobs := make([]*DagJob, len(tmp))
+	for i := 0; i < len(jobs); i++ {
+		jobs[i] = &tmp[i]
+	}
+
+	td.BuildTaskDag(jobs)
+
+	return td, self.AddTaskDag(td)
 }

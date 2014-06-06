@@ -21,12 +21,42 @@ type ResMan struct {
 	executor *mesos.ExecutorInfo
 	exit     chan bool
 	taskId   int
-	readyDag chan string
+	cmdCh    chan interface{}
+}
+
+type mesosDriver struct {
+	driver *mesos.SchedulerDriver
+	wait   chan struct{}
+}
+
+type cmdMesosOffers struct {
+	mesosDriver
+	offers []mesos.Offer
+}
+
+type cmdMesosError struct {
+	mesosDriver
+	err string
+}
+
+type cmdMesosStatusUpdate struct {
+	mesosDriver
+	status mesos.TaskStatus
+}
+
+type cmdRunTask struct {
+	dagName string
+	ch      chan *addTaskRes //return task id
+}
+
+type addTaskRes struct {
+	err    error
+	taskId string
 }
 
 func NewResMan() *ResMan {
 	return &ResMan{s: scheduler.NewTaskScheduler(), exit: make(chan bool),
-		readyDag: make(chan string, 1000),
+		cmdCh: make(chan interface{}, 1000),
 	}
 }
 
@@ -81,27 +111,64 @@ func (self *ReadyTask) String() string {
 	return self.td.DagName + ":  " + fmt.Sprintf("%+v", self.Task)
 }
 
-func (self *ResMan) OnStartReady(dagName string) {
-	self.readyDag <- dagName
+func (self *ResMan) OnStartReady(dagName string) (string, error) {
+	t := &cmdRunTask{dagName: dagName, ch: make(chan *addTaskRes, 1)}
+	self.cmdCh <- t
+	res := <-t.ch
+	return res.taskId, res.err
 }
 
-func (self *ResMan) getReadyDags() []*scheduler.TaskDag {
-	dagNames := make([]string, 0)
-	for {
-		select {
-		case dagName := <-self.readyDag:
-			dagNames = append(dagNames, dagName)
-		default:
-			break
-		}
+func (self *ResMan) handleAddRunTask(t *cmdRunTask) {
+	td, err := self.s.TryAddTaskDag(t.dagName)
+	if err != nil {
+		t.ch <- &addTaskRes{err: err}
+		return
 	}
 
-	self.s.Refresh(dagNames)
-	return self.s.GetReadyDags()
+	t.ch <- &addTaskRes{err: err, taskId: strconv.Itoa(int(td.DagMeta.Id))}
+
+}
+
+func (self *ResMan) handleMesosError(t *cmdMesosError) {
+	self.OnError(t.driver, t.err)
+}
+
+func (self *ResMan) handleMesosOffers(t *cmdMesosOffers) {
+	self.OnResourceOffers(t.driver, t.offers)
+}
+
+func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
+	self.OnStatusUpdate(t.driver, t.status)
+}
+
+func (self *ResMan) handleCmd(cmd interface{}) {
+	switch cmd.(type) {
+	case *cmdRunTask:
+		t := cmd.(*cmdRunTask)
+		self.handleAddRunTask(t)
+	case *cmdMesosError:
+		t := cmd.(*cmdMesosError)
+		self.handleMesosError(t)
+	case *cmdMesosOffers:
+		t := cmd.(*cmdMesosOffers)
+		self.handleMesosOffers(t)
+	case *cmdMesosStatusUpdate:
+		t := cmd.(*cmdMesosStatusUpdate)
+		self.handleMesosStatusUpdate(t)
+	}
+}
+
+func (self *ResMan) EventLoop() {
+	for {
+		select {
+		case cmd := <-self.cmdCh:
+			self.handleCmd(cmd)
+		}
+	}
 }
 
 func (self *ResMan) getReadyTasks() []*ReadyTask {
-	tds := self.getReadyDags()
+	tds := self.s.GetReadyDags()
 	log.Debugf("ready dag: %+v", tds)
 	rts := make([]*ReadyTask, 0)
 	//todo:check if schedule time is match
@@ -263,6 +330,7 @@ func (self *ResMan) Run() {
 
 	driver.Init()
 	defer driver.Destroy()
+	go self.EventLoop()
 
 	driver.Start()
 	<-self.exit
