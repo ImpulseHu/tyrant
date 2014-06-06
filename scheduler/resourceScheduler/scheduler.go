@@ -130,15 +130,71 @@ func (self *ResMan) handleAddRunTask(t *cmdRunTask) {
 }
 
 func (self *ResMan) handleMesosError(t *cmdMesosError) {
-	self.OnError(t.driver, t.err)
+	defer func() {
+		t.wait <- struct{}{}
+	}()
+
+	log.Errorf("%s\n", t.err)
 }
 
 func (self *ResMan) handleMesosOffers(t *cmdMesosOffers) {
-	self.OnResourceOffers(t.driver, t.offers)
+	driver := t.driver
+	offers := t.offers
+
+	defer func() {
+		t.wait <- struct{}{}
+	}()
+
+	log.Debug("ResourceOffers")
+	ts := self.getReadyTasks()
+	log.Debugf("ready tasks:%+v", ts)
+	var idx, left int
+
+	for idx = 0; idx < len(offers); idx++ {
+		n := self.runTaskUsingOffer(driver, offers[idx], ts[left:])
+		if n == 0 {
+			break
+		}
+		left += n
+	}
+
+	//decline left offers
+	for i := idx; i < len(offers); i++ {
+		driver.DeclineOffer(offers[i].Id)
+	}
 }
 
 func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
-	self.OnStatusUpdate(t.driver, t.status)
+	status := t.status
+
+	defer func() {
+		t.wait <- struct{}{}
+	}()
+
+	taskId := *status.TaskId
+	ti := decodeTaskId(*taskId.Value)
+	log.Debugf("Received task %+v status: %+v", ti, status)
+	switch *status.State {
+	case mesos.TaskState_TASK_FINISHED:
+		self.removeTask(ti)
+	case mesos.TaskState_TASK_FAILED:
+		//todo: retry
+		self.removeTask(ti)
+	case mesos.TaskState_TASK_KILLED:
+		//todo:
+		self.removeTask(ti)
+	case mesos.TaskState_TASK_LOST:
+		//todo:
+		self.removeTask(ti)
+	case mesos.TaskState_TASK_STAGING:
+		//todo: update something
+	case mesos.TaskState_TASK_STARTING:
+		//todo:update something
+	case mesos.TaskState_TASK_RUNNING:
+		//todo:update something
+	default:
+		panic("should never happend")
+	}
 }
 
 func (self *ResMan) handleCmd(cmd interface{}) {
@@ -230,23 +286,15 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 }
 
 func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mesos.Offer) {
-	log.Debug("ResourceOffers")
-	ts := self.getReadyTasks()
-	log.Debugf("ready tasks:%+v", ts)
-	var idx, left int
+	cmd := &cmdMesosOffers{
+		mesosDriver: mesosDriver{
+			driver: driver,
+			wait:   make(chan struct{}),
+		},
+		offers: offers}
 
-	for idx = 0; idx < len(offers); idx++ {
-		n := self.runTaskUsingOffer(driver, offers[idx], ts[left:])
-		if n == 0 {
-			break
-		}
-		left += n
-	}
-
-	//decline left offers
-	for i := idx; i < len(offers); i++ {
-		driver.DeclineOffer(offers[i].Id)
-	}
+	self.cmdCh <- cmd
+	<-cmd.wait
 }
 
 func (self *ResMan) removeTask(ti *TyrantTaskId) {
@@ -262,34 +310,29 @@ func (self *ResMan) removeTask(ti *TyrantTaskId) {
 }
 
 func (self *ResMan) OnStatusUpdate(driver *mesos.SchedulerDriver, status mesos.TaskStatus) {
-	taskId := *status.TaskId
-	ti := decodeTaskId(*taskId.Value)
-	log.Debugf("Received task %+v status: %+v", ti, status)
-	switch *status.State {
-	case mesos.TaskState_TASK_FINISHED:
-		self.removeTask(ti)
-	case mesos.TaskState_TASK_FAILED:
-		//todo: retry
-		self.removeTask(ti)
-	case mesos.TaskState_TASK_KILLED:
-		//todo:
-		self.removeTask(ti)
-	case mesos.TaskState_TASK_LOST:
-		//todo:
-		self.removeTask(ti)
-	case mesos.TaskState_TASK_STAGING:
-		//todo: update something
-	case mesos.TaskState_TASK_STARTING:
-		//todo:update something
-	case mesos.TaskState_TASK_RUNNING:
-		//todo:update something
-	default:
-		panic("should never happend")
-	}
+	cmd := &cmdMesosStatusUpdate{
+		mesosDriver: mesosDriver{
+			driver: driver,
+			wait:   make(chan struct{}),
+		},
+		status: status}
+
+	self.cmdCh <- cmd
+	<-cmd.wait
+
 }
 
 func (self *ResMan) OnError(driver *mesos.SchedulerDriver, err string) {
-	log.Errorf("%s\n", err)
+	cmd := &cmdMesosError{
+		mesosDriver: mesosDriver{
+			driver: driver,
+			wait:   make(chan struct{}),
+		},
+		err: err}
+
+	self.cmdCh <- cmd
+	<-cmd.wait
+
 }
 
 func (self *ResMan) OnDisconnected(driver *mesos.SchedulerDriver) {

@@ -2,12 +2,10 @@ package scheduler
 
 import (
 	"encoding/json"
-	"github.com/hoisie/web"
 	"io/ioutil"
-	"net/http"
 	_ "net/http/pprof"
 
-	log "github.com/ngaut/logging"
+	"github.com/hoisie/web"
 )
 
 type Server struct {
