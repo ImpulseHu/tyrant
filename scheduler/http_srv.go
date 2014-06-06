@@ -150,6 +150,13 @@ func removeDagJob(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func forceRunDagJob(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	name := r.FormValue("name")
+	// TODO
+	response(w, http.StatusOK, name)
+}
+
 func (srv *Server) Serve() {
 	http.HandleFunc("/job/list", jobsListHandler)
 	http.HandleFunc("/job/new", newJobHandler)
@@ -158,6 +165,7 @@ func (srv *Server) Serve() {
 	http.HandleFunc("/dag/new", newDagHandler)
 	http.HandleFunc("/dag/job/add", addDagJob)
 	http.HandleFunc("/dag/job/remove", removeDagJob)
+	http.HandleFunc("/dag/job/run", forceRunDagJob)
 	addr, _ := globalCfg.ReadString("http_addr", ":9090")
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
