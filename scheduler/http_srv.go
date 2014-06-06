@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"encoding/json"
+	"github.com/hoisie/web"
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
@@ -13,159 +14,173 @@ type Server struct {
 	addr string
 }
 
-func response(w http.ResponseWriter, status int, content string) {
-	w.WriteHeader(status)
-	w.Write([]byte(content))
+func responseJson(ctx *web.Context, statusCode int, obj interface{}) string {
+	ctx.WriteHeader(statusCode)
+	if obj != nil {
+		content, _ := json.MarshalIndent(obj, " ", "  ")
+		return string(content)
+	}
+	return ""
 }
 
-func jobsListHandler(w http.ResponseWriter, r *http.Request) {
+func responseError(ctx *web.Context, ret int, msg string) string {
+	return responseJson(ctx, 500, map[string]interface{}{
+		"ret": ret,
+		"msg": msg,
+	})
+}
+
+func responseSuccess(ctx *web.Context, data interface{}) string {
+	return responseJson(ctx, 200, map[string]interface{}{
+		"ret":  0,
+		"data": data,
+	})
+}
+
+func jobList(ctx *web.Context) string {
 	jobs := GetJobList()
 	if jobs != nil && len(jobs) > 0 {
-		content, _ := json.MarshalIndent(jobs, " ", "  ")
-		response(w, http.StatusOK, string(content))
-		return
+		return responseSuccess(ctx, jobs)
 	}
-	response(w, http.StatusOK, "[]")
+	return responseSuccess(ctx, "[]")
 }
 
-func updateJobHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	name := r.FormValue("name")
-	log.Debug(name)
+func jobUpdate(ctx *web.Context) string {
+	name, b := ctx.Params["name"]
+	if !b {
+		return responseError(ctx, -1, "job name is needed")
+	}
 
 	if JobExists(name) {
-		b, err := ioutil.ReadAll(r.Body)
+		b, err := ioutil.ReadAll(ctx.Request.Body)
 		if err != nil {
-			response(w, http.StatusBadRequest, err.Error())
-			return
+			return responseError(ctx, -2, err.Error())
 		}
 		var job Job
 		err = json.Unmarshal(b, &job)
 		j, _ := GetJobByName(name)
 		if err != nil {
-			response(w, http.StatusBadRequest, err.Error())
-			return
+			return responseError(ctx, -3, err.Error())
 		}
 		job.Id = j.Id
-		job.Save()
-		response(w, http.StatusOK, string(b))
-		return
+		if err := job.Save(); err != nil {
+			return responseError(ctx, -4, err.Error())
+		}
+		return responseSuccess(ctx, job)
 	} else {
-		response(w, http.StatusNotFound, "no such job")
+		return responseError(ctx, -5, "no such job")
 	}
 }
 
-func newJobHandler(w http.ResponseWriter, r *http.Request) {
-	b, err := ioutil.ReadAll(r.Body)
+func jobNew(ctx *web.Context) string {
+	b, err := ioutil.ReadAll(ctx.Request.Body)
 	if err != nil {
-		response(w, http.StatusBadRequest, err.Error())
-		return
+		return responseError(ctx, -1, err.Error())
 	}
 	var job Job
 	err = json.Unmarshal(b, &job)
 	if err != nil {
-		response(w, http.StatusBadRequest, err.Error())
-		return
+		return responseError(ctx, -2, err.Error())
 	}
 	err = sharedDbMap.Insert(&job)
 	if err != nil {
-		response(w, http.StatusBadRequest, err.Error())
-		return
+		return responseError(ctx, -3, err.Error())
 	}
-	content, _ := json.MarshalIndent(job, " ", "  ")
-	response(w, http.StatusOK, string(content))
+	return responseSuccess(ctx, job)
 }
 
-func removeJobHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	name := r.FormValue("name")
+func jobRemove(ctx *web.Context) string {
+	name, b := ctx.Params["name"]
+	if !b {
+		return responseError(ctx, -1, "job name is needed")
+	}
 	j, _ := GetJobByName(name)
 	if j != nil {
-		j.Remove()
-		response(w, http.StatusOK, "")
-	} else {
-		response(w, http.StatusNotFound, "no such job")
+		if err := j.Remove(); err != nil {
+			return responseError(ctx, -2, err.Error())
+		}
+		return responseSuccess(ctx, j)
 	}
+	return responseError(ctx, -3, "no such job")
 }
 
-func newDagHandler(w http.ResponseWriter, r *http.Request) {
-	b, err := ioutil.ReadAll(r.Body)
+func dagNew(ctx *web.Context) string {
+	b, err := ioutil.ReadAll(ctx.Request.Body)
 	if err != nil {
-		response(w, http.StatusBadRequest, err.Error())
-		return
+		return responseError(ctx, -1, err.Error())
 	}
 	var dag DagMeta
 	err = json.Unmarshal(b, &dag)
 	if err != nil {
-		response(w, http.StatusBadRequest, err.Error())
-		return
+		return responseError(ctx, -2, err.Error())
 	}
 	err = dag.Save()
 	if err != nil {
-		response(w, http.StatusBadRequest, err.Error())
-		return
+		return responseError(ctx, -3, err.Error())
 	}
-	content, _ := json.MarshalIndent(dag, " ", "  ")
-	response(w, http.StatusOK, string(content))
+	return responseSuccess(ctx, dag)
 }
 
-func addDagJob(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	name := r.FormValue("name")
-	b, err := ioutil.ReadAll(r.Body)
+func dagJobAdd(ctx *web.Context) string {
+	name, ok := ctx.Params["name"]
+	if !ok {
+		return responseError(ctx, -1, "dag job name is needed")
+	}
+	b, err := ioutil.ReadAll(ctx.Request.Body)
 	if err != nil {
-		response(w, http.StatusBadRequest, err.Error())
-		return
+		return responseError(ctx, -2, err.Error())
 	}
 	dag := GetDagFromName(name)
 	if dag != nil {
 		var job DagJob
 		err = json.Unmarshal(b, &job)
 		if err != nil {
-			response(w, http.StatusBadRequest, err.Error())
-			return
+			return responseError(ctx, -3, err.Error())
 		}
 		err = dag.AddDagJob(&job)
 		if err != nil {
-			response(w, http.StatusBadRequest, err.Error())
-			return
+			return responseError(ctx, -4, err.Error())
 		}
-		return
+		return responseSuccess(ctx, job)
 	}
-
-	response(w, http.StatusBadRequest, name+" not exist")
+	return responseError(ctx, -5, "same job exists")
 }
 
-func removeDagJob(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	name := r.FormValue("name")
+func dagJobRemove(ctx *web.Context) string {
+	name, ok := ctx.Params["name"]
+	if !ok {
+		return responseError(ctx, -1, "dag job name is needed")
+	}
 	dag := GetDagFromName(name)
 	if dag != nil {
-		if dag.Remove() == nil {
-			response(w, http.StatusOK, "")
-			return
+		err := dag.Remove()
+		if err != nil {
+			return responseError(ctx, -2, err.Error())
 		}
+		return responseSuccess(ctx, "")
 	} else {
-		response(w, http.StatusBadRequest, "")
+		return responseError(ctx, -3, "no such dag job")
 	}
 }
 
-func forceRunDagJob(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	name := r.FormValue("name")
+func dagJobRun(ctx *web.Context) string {
+	name, ok := ctx.Params["name"]
+	if !ok {
+		return responseError(ctx, -1, "dag job name is needed")
+	}
 	// TODO
-	response(w, http.StatusOK, name)
+	return responseSuccess(ctx, name)
 }
 
 func (srv *Server) Serve() {
-	http.HandleFunc("/job/list", jobsListHandler)
-	http.HandleFunc("/job/new", newJobHandler)
-	http.HandleFunc("/job/remove", removeJobHandler)
-	http.HandleFunc("/job/update", updateJobHandler)
-	http.HandleFunc("/dag/new", newDagHandler)
-	http.HandleFunc("/dag/job/add", addDagJob)
-	http.HandleFunc("/dag/job/remove", removeDagJob)
-	http.HandleFunc("/dag/job/run", forceRunDagJob)
+	web.Get("/job/list", jobList)
+	web.Post("/job/new", jobNew)
+	web.Post("/job/remove", jobRemove)
+	web.Post("/job/update", jobUpdate)
+	web.Post("/dag/new", dagNew)
+	web.Post("/dag/job/add", dagJobAdd)
+	web.Post("/dag/job/remove", dagJobRemove)
+	web.Post("/dag/job/run", dagJobRun)
 	addr, _ := globalCfg.ReadString("http_addr", ":9090")
-	log.Fatal(http.ListenAndServe(addr, nil))
+	web.Run(addr)
 }
