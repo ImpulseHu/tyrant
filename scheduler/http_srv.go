@@ -2,14 +2,22 @@ package scheduler
 
 import (
 	"encoding/json"
+	"github.com/hoisie/web"
 	"io/ioutil"
 	_ "net/http/pprof"
-
-	"github.com/hoisie/web"
 )
 
+type Notifier interface {
+	OnRunJob(name string) (string, error)
+}
+
 type Server struct {
-	addr string
+	addr     string
+	notifier Notifier
+}
+
+func NewServer(addr string, notifier Notifier) *Server {
+	return &Server{addr, notifier}
 }
 
 func responseJson(ctx *web.Context, statusCode int, obj interface{}) string {
@@ -170,7 +178,13 @@ func dagJobRun(ctx *web.Context) string {
 	return responseSuccess(ctx, name)
 }
 
+func indexPage(ctx *web.Context) string {
+	b, _ := ioutil.ReadFile("./templates/index.html")
+	return string(b)
+}
+
 func (srv *Server) Serve() {
+	web.Get("/", indexPage)
 	web.Get("/job/list", jobList)
 	web.Post("/job/new", jobNew)
 	web.Post("/job/remove", jobRemove)
