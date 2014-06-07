@@ -127,7 +127,8 @@ func jobRemove(ctx *web.Context) string {
 }
 
 func dagList(ctx *web.Context) string {
-	return ""
+	dagMetaList := GetDagMetaList()
+	return responseSuccess(ctx, dagMetaList)
 }
 
 func dagNew(ctx *web.Context) string {
