@@ -197,6 +197,13 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	}
 }
 
+func (self *ResMan) OnRunJob(name string) (string, error) {
+	cmd := &cmdRunTask{dagName: name, ch: make(chan *addTaskRes, 1)}
+	self.cmdCh <- cmd
+	res := <-cmd.ch
+	return res.taskId, res.err
+}
+
 func (self *ResMan) handleCmd(cmd interface{}) {
 	switch cmd.(type) {
 	case *cmdRunTask:
