@@ -7,6 +7,13 @@ import (
 	_ "net/http/pprof"
 )
 
+var indexPageContent string
+
+func init() {
+	b, _ := ioutil.ReadFile("./templates/index.html")
+	indexPageContent = string(b)
+}
+
 type Notifier interface {
 	OnRunJob(name string) (string, error)
 }
@@ -110,6 +117,10 @@ func jobRemove(ctx *web.Context) string {
 	return responseError(ctx, -3, "no such job")
 }
 
+func dagList(ctx *web.Context) string {
+	return ""
+}
+
 func dagNew(ctx *web.Context) string {
 	b, err := ioutil.ReadAll(ctx.Request.Body)
 	if err != nil {
@@ -179,8 +190,7 @@ func dagJobRun(ctx *web.Context) string {
 }
 
 func indexPage(ctx *web.Context) string {
-	b, _ := ioutil.ReadFile("./templates/index.html")
-	return string(b)
+	return indexPageContent
 }
 
 func (srv *Server) Serve() {

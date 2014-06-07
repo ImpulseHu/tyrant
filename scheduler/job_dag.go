@@ -2,11 +2,9 @@ package scheduler
 
 import (
 	"fmt"
-	"time"
-
-	log "github.com/ngaut/logging"
-
 	"github.com/gorhill/cronexpr"
+	log "github.com/ngaut/logging"
+	"time"
 )
 
 type DagJob struct {
