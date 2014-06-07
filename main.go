@@ -11,9 +11,10 @@ func init() {
 }
 
 func main() {
+	resScheduler := resourceScheduler.NewResMan()
 	go func() {
-		resourceScheduler.NewResMan().Run()
+		resScheduler.Run()
 	}()
-	s := scheduler.Server{}
+	s := scheduler.NewServer(":9090", resScheduler)
 	s.Serve()
 }

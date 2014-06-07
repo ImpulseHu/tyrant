@@ -2,9 +2,10 @@ package scheduler
 
 import (
 	"encoding/json"
-	"github.com/hoisie/web"
 	"io/ioutil"
 	_ "net/http/pprof"
+
+	"github.com/hoisie/web"
 )
 
 var indexPageContent string
@@ -23,8 +24,16 @@ type Server struct {
 	notifier Notifier
 }
 
+var (
+	s *Server
+)
+
 func NewServer(addr string, notifier Notifier) *Server {
-	return &Server{addr, notifier}
+	if s != nil {
+		return s
+	}
+	s = &Server{addr, notifier}
+	return s
 }
 
 func responseJson(ctx *web.Context, statusCode int, obj interface{}) string {
@@ -185,8 +194,16 @@ func dagJobRun(ctx *web.Context) string {
 	if !ok {
 		return responseError(ctx, -1, "dag job name is needed")
 	}
-	// TODO
-	return responseSuccess(ctx, name)
+
+	if s.notifier != nil {
+		taskId, err := s.notifier.OnRunJob(name)
+		if err != nil {
+			return responseError(ctx, -2, err.Error())
+		}
+		return responseSuccess(ctx, taskId)
+	}
+
+	return responseError(ctx, -3, "notifier not found")
 }
 
 func indexPage(ctx *web.Context) string {
