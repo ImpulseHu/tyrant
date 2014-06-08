@@ -18,11 +18,19 @@
       }
 
       .container {
-        width: 1500px;
+        width: 90%;
       }
 
       .content {
         padding-top: 50px;
+      }
+
+      .table {
+        table-layout: fixed;
+        word-wrap: break-word;
+      }
+      td {
+        max-width: 200px;
       }
     </style>
 
@@ -50,6 +58,7 @@
         <td> <%= executor %> </td>
         <td> <%= owner %> </td>
         <td> <%= command %> </td>
+        <td> <%= create_ts %> </td>
         <td>  <a href="#" class="">Edit</a> | <a href="#" class="">Remove</a> </td>
       </tr>
     </script>
@@ -79,13 +88,14 @@
       <div class="row">
       <div class="col-md-7">
         <div class="jobs">
-          <table class="table table-striped">
+          <table class="table table-striped table-hover">
             <thead>
               <tr>
                 <th>Name</th>
                 <th>Executor</th>
                 <th>Owner</th>
                 <th>Command</th>
+                <th>Created Date</th>
                 <th></th>
               </tr>
             </thead>
@@ -95,46 +105,37 @@
       </div>
       </div>
       <div class="col-md-5">
-        <form class="form-horizontal" role="form">
+        <div id="message-box" class="alert alert-success">
+          <a href="#" class="alert-link message"></a>
+        </div>
+        <form id="add-job-form" role="form">
           <div class="form-group">
-            <label for="inputName" class="col-sm-2 control-label">Job Name</label>
-            <div class="col-sm-5">
-              <input type="text" class="form-control" id="inputName">
-            </div>
+            <label for="inputName" class="control-label">Job Name</label>
+            <input name="name" type="text" class="form-control" id="inputName">
           </div>
 
           <div class="form-group">
-            <label for="inputExecutor" class="col-sm-2 control-label">Executor</label>
-            <div class="col-sm-5">
-              <input type="text" class="form-control" id="inputExecutor">
-            </div>
+            <label for="inputExecutor" class="control-label">Executor</label>
+            <input type="text" name="executor" class="form-control" id="inputExecutor">
           </div>
 
           <div class="form-group">
-            <label for="inputExecutorFlag" class="col-sm-2 control-label">Executor Flags</label>
-            <div class="col-sm-5">
-              <input type="text" class="form-control" id="inputExecutorFlag">
-            </div>
+            <label for="inputExecutorFlag" class="control-label">Executor Flags</label>
+            <input type="text" class="form-control" name="executor_flag" id="inputExecutorFlag">
           </div>
 
           <div class="form-group">
-            <label for="inputOwner" class="col-sm-2 control-label">Owner</label>
-            <div class="col-sm-5">
-              <input type="text" class="form-control" id="inputOwner">
-            </div>
+            <label for="inputOwner" class="control-label">Owner</label>
+            <input type="text" class="form-control" name="owner" id="inputOwner">
           </div>
 
           <div class="form-group">
-            <label for="inputCommand" class="col-sm-2 control-label">Command</label>
-            <div class="col-sm-10">
-              <textarea class="form-control" rows="3"></textarea>
-            </div>
+            <label for="inputCommand" class="control-label">Command</label>
+            <textarea class="form-control" name="command" rows="3"></textarea>
           </div>
 
           <div class="form-group">
-            <div class="col-sm-offset-2 col-sm-10">
-              <button type="submit" class="btn btn-default">Save</button>
-            </div>
+            <button type="submit" class="btn btn-default">Save</button>
           </div>
         </form>
       </div>
@@ -148,15 +149,62 @@
 
     <script>
       $(document).ready(function() {
-        var job_row_teml = _.template($('#job_row').html())
-        $.get('/job/list', function(e) {
-          var content = eval('[' + e + ']')[0]
-          $.each(content.data, function(idx) {
-            var job = content.data[idx]
-            $(".jobs table tbody").append(job_row_teml(job))
+        $("#message-box").hide()
+        // helper function
+        $.fn.serializeObject = function() {
+            var o = {};
+            var a = this.serializeArray();
+            $.each(a, function() {
+                if (o[this.name] !== undefined) {
+                    if (!o[this.name].push) {
+                        o[this.name] = [o[this.name]];
+                    }
+                    o[this.name].push(this.value || '');
+                } else {
+                    o[this.name] = this.value || '';
+                }
+            });
+            return o;
+        };
+        // end of helper
+
+        var job_row_teml = _.template($('#job_row').html());
+
+        var load_job_list = function() {
+          $.get('/job/list', function(e) {
+            $(".jobs table tbody").html("");
+            var content = JSON.parse(e)
+            if (content.data == null) return;
+            $.each(content.data, function(idx) {
+              var job = content.data[idx];
+              $(".jobs table tbody").append(job_row_teml(job));
+            });
+          });
+        }
+        load_job_list()
+
+        $("#add-job-form").submit(function(event) {
+          var s = JSON.stringify($(this).serializeObject());
+          console.log(s);
+          $("#message-box").show();
+          $.ajax({
+            contentType: "application/json",
+            data : s,
+            dataType: "json",
+            type: "POST",
+            url: "/job/new",
+            success: function(data){
+              if (data.ret == 0) {
+                load_job_list()
+                setTimeout(function() {
+                  $("#message-box").hide();
+                }, 1000);
+              }
+            }
           })
-        })
-      })
+          event.preventDefault();
+        });
+      });
     </script>
   </body>
 </html>

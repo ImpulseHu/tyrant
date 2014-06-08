@@ -2,17 +2,23 @@ package scheduler
 
 import (
 	"encoding/json"
+	"github.com/hoisie/web"
 	"io/ioutil"
 	_ "net/http/pprof"
-
-	"github.com/hoisie/web"
+	"time"
 )
 
-var indexPageContent string
+var pages map[string]string
 
 func init() {
-	b, _ := ioutil.ReadFile("./templates/index.html")
-	indexPageContent = string(b)
+	pages = make(map[string]string)
+	job, _ := ioutil.ReadFile("./templates/job.html")
+	dag, _ := ioutil.ReadFile("./templates/dag.html")
+	status, _ := ioutil.ReadFile("./templates/status.html")
+	pages["index"] = string(job)
+	pages["job"] = string(job)
+	pages["dag"] = string(dag)
+	pages["status"] = string(status)
 }
 
 type Notifier interface {
@@ -46,7 +52,7 @@ func responseJson(ctx *web.Context, statusCode int, obj interface{}) string {
 }
 
 func responseError(ctx *web.Context, ret int, msg string) string {
-	return responseJson(ctx, 500, map[string]interface{}{
+	return responseJson(ctx, 200, map[string]interface{}{
 		"ret": ret,
 		"msg": msg,
 	})
@@ -64,7 +70,7 @@ func jobList(ctx *web.Context) string {
 	if jobs != nil && len(jobs) > 0 {
 		return responseSuccess(ctx, jobs)
 	}
-	return responseSuccess(ctx, "[]")
+	return responseSuccess(ctx, nil)
 }
 
 func jobUpdate(ctx *web.Context) string {
@@ -101,6 +107,7 @@ func jobNew(ctx *web.Context) string {
 	}
 	var job Job
 	err = json.Unmarshal(b, &job)
+	job.CreateTs = time.Now().Unix()
 	if err != nil {
 		return responseError(ctx, -2, err.Error())
 	}
@@ -138,6 +145,7 @@ func dagNew(ctx *web.Context) string {
 	}
 	var dag DagMeta
 	err = json.Unmarshal(b, &dag)
+	dag.CreateTs = time.Now().Unix()
 	if err != nil {
 		return responseError(ctx, -2, err.Error())
 	}
@@ -203,17 +211,34 @@ func dagJobRun(ctx *web.Context) string {
 		}
 		return responseSuccess(ctx, taskId)
 	}
-
 	return responseError(ctx, -3, "notifier not found")
 }
 
+func jobPage(ctx *web.Context) string {
+	return pages["job"]
+}
+
+func dagPage(ctx *web.Context) string {
+	return pages["dag"]
+}
+
+func statusPage(ctx *web.Context) string {
+	return pages["status"]
+}
+
 func indexPage(ctx *web.Context) string {
-	return indexPageContent
+	return pages["index"]
 }
 
 func (srv *Server) Serve() {
 	web.Get("/", indexPage)
+	web.Get("/job", jobPage)
+	web.Get("/dag", dagPage)
+	web.Get("/status", statusPage)
+
 	web.Get("/job/list", jobList)
+	web.Get("/dag/list", dagList)
+
 	web.Post("/job/new", jobNew)
 	web.Post("/job/remove", jobRemove)
 	web.Post("/job/update", jobUpdate)
