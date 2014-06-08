@@ -137,41 +137,11 @@
     <script src="http://cdn.staticfile.org/jquery/2.1.1-rc2/jquery.min.js"></script>
     <script src="http://cdn.staticfile.org/underscore.js/1.6.0/underscore-min.js"></script>
     <script src="http://cdn.staticfile.org/twitter-bootstrap/3.1.1/js/bootstrap.min.js"></script>
+    <script src="static/utils.js"></script>
 
     <script>
       $(document).ready(function() {
         $("#message-box").hide()
-        // helper function
-        $.fn.serializeObject = function() {
-            var o = {};
-            var a = this.serializeArray();
-            $.each(a, function() {
-                if (o[this.name] !== undefined) {
-                    if (!o[this.name].push) {
-                        o[this.name] = [o[this.name]];
-                    }
-                    o[this.name].push(this.value || '');
-                } else {
-                    o[this.name] = this.value || '';
-                }
-            });
-            return o;
-        };
-
-        var TimestampToDate = function(ts) {
-          // create a new javascript Date object based on the timestamp
-          // multiplied by 1000 so that the argument is in milliseconds, not seconds
-          var date = new Date(unix_timestamp*1000);
-          // hours part from the timestamp
-          var hours = date.getHours();
-          // minutes part from the timestamp
-          var minutes = date.getMinutes();
-          // seconds part from the timestamp
-          var seconds = date.getSeconds();
-          // will display time in 10:30:23 format
-          return hours + ':' + minutes + ':' + seconds;
-        }
-        // end of helper
 
         var job_row_teml = _.template($('#job_row').html());
 

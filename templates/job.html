@@ -58,8 +58,8 @@
         <td> <%= executor %> </td>
         <td> <%= owner %> </td>
         <td> <%= command %> </td>
-        <td> <%= create_ts %> </td>
-        <td>  <a href="#" class="">Edit</a> | <a href="#" class="">Remove</a> </td>
+        <td> <%= date %> </td>
+        <td>  <a href="#" class="">Edit</a> | <a href="javascript:void(0)" class="remove-job-btn" data-jobname="<%= name %>">Remove</a> </td>
       </tr>
     </script>
 
@@ -146,27 +146,11 @@
     <script src="http://cdn.staticfile.org/jquery/2.1.1-rc2/jquery.min.js"></script>
     <script src="http://cdn.staticfile.org/underscore.js/1.6.0/underscore-min.js"></script>
     <script src="http://cdn.staticfile.org/twitter-bootstrap/3.1.1/js/bootstrap.min.js"></script>
+    <script src="utils.js"></script>
 
     <script>
       $(document).ready(function() {
         $("#message-box").hide()
-        // helper function
-        $.fn.serializeObject = function() {
-            var o = {};
-            var a = this.serializeArray();
-            $.each(a, function() {
-                if (o[this.name] !== undefined) {
-                    if (!o[this.name].push) {
-                        o[this.name] = [o[this.name]];
-                    }
-                    o[this.name].push(this.value || '');
-                } else {
-                    o[this.name] = this.value || '';
-                }
-            });
-            return o;
-        };
-        // end of helper
 
         var job_row_teml = _.template($('#job_row').html());
 
@@ -177,6 +161,7 @@
             if (content.data == null) return;
             $.each(content.data, function(idx) {
               var job = content.data[idx];
+              job.date = TimestampToDate(job.create_ts);
               $(".jobs table tbody").append(job_row_teml(job));
             });
           });
@@ -204,6 +189,13 @@
           })
           event.preventDefault();
         });
+
+        $(document).on("click", ".remove-job-btn", function() {
+          var jobname = $(this).data("jobname")
+          $.post("/job/remove?name=" + jobname, function(e) {
+            load_job_list();
+          })
+        })
       });
     </script>
   </body>
