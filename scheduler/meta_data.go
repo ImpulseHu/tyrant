@@ -39,6 +39,7 @@ type DagMeta struct {
 	LastSuccessTs int64  `db:"last_success_ts" json:"last_success_ts"`
 	LastErrTs     int64  `db:"last_error_ts" json:"last_error_ts"`
 	LastErrMsg    string `db:"last_error_msg" json:"last_error_msg"`
+	LastStatus    string `db:"last_status" json:"last_status"`
 }
 
 // Dag job (Edge)
