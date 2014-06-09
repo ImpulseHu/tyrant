@@ -3,6 +3,7 @@ package scheduler
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	log "github.com/ngaut/logging"
 )
@@ -25,11 +26,12 @@ type Task struct {
 }
 
 type TaskDag struct {
-	DagName string
-	Dag     *DGraph
-	state   int
-	DagMeta *DagMeta
-	Details string
+	DagName    string
+	Dag        *DGraph
+	state      int
+	DagMeta    *DagMeta
+	Details    string
+	LastUpdate time.Time
 }
 
 func NewTaskDag(name string, meta *DagMeta) *TaskDag {
@@ -211,6 +213,15 @@ func (self *TaskScheduler) SetTaskDetails(dagName string, details string) {
 	}
 
 	td.Details = details
+}
+
+func (self *TaskScheduler) TimeoutCheck(sec int) {
+	for k, td := range self.tds {
+		if td.state == taskRuning && time.Since(td.LastUpdate).Seconds() > float64(sec) {
+			log.Warning("%+v timeout", td)
+			delete(self.tds, k)
+		}
+	}
 }
 
 func (self *TaskScheduler) TryAddTaskDag(name string) (*TaskDag, error) {

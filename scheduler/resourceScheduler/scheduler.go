@@ -1,13 +1,11 @@
 package resourceScheduler
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"flag"
 	"fmt"
+	"time"
 
 	"strconv"
-	"strings"
 
 	log "github.com/ngaut/logging"
 
@@ -17,11 +15,12 @@ import (
 )
 
 type ResMan struct {
-	s        *scheduler.TaskScheduler
-	executor *mesos.ExecutorInfo
-	exit     chan bool
-	taskId   int
-	cmdCh    chan interface{}
+	s          *scheduler.TaskScheduler
+	executor   *mesos.ExecutorInfo
+	exit       chan bool
+	taskId     int
+	timeoutSec int
+	cmdCh      chan interface{}
 }
 
 type mesosDriver struct {
@@ -44,72 +43,16 @@ type cmdMesosStatusUpdate struct {
 	status mesos.TaskStatus
 }
 
-type cmdRunTask struct {
-	dagName string
-	ch      chan *pair //return task id and error
-}
-
 func NewResMan() *ResMan {
 	return &ResMan{s: scheduler.NewTaskScheduler(), exit: make(chan bool),
-		cmdCh: make(chan interface{}, 1000),
+		cmdCh:      make(chan interface{}, 1000),
+		timeoutSec: 30,
 	}
-}
-
-type TyrantTaskId struct {
-	DagName  string
-	TaskName string
-}
-
-func genTaskId(dagName string, taskName string) string {
-	if buf, err := json.Marshal(TyrantTaskId{DagName: dagName, TaskName: taskName}); err != nil {
-		log.Fatal(err)
-	} else {
-		return base64.StdEncoding.EncodeToString(buf)
-	}
-
-	return ""
-}
-
-func decodeTaskId(str string) *TyrantTaskId {
-	data, err := base64.StdEncoding.DecodeString(str)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var ti TyrantTaskId
-	err = json.Unmarshal(data, &ti)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return &ti
-}
-
-func splitTrim(s string) []string {
-	tmp := strings.Split(s, ",")
-	ss := make([]string, 0)
-	for _, v := range tmp {
-		if x := strings.Trim(v, " "); len(x) > 0 {
-			ss = append(ss, x)
-		}
-	}
-
-	return ss
 }
 
 type ReadyTask struct {
 	*scheduler.Task
 	td *scheduler.TaskDag
-}
-
-type pair struct {
-	a0 interface{}
-	a1 interface{}
-}
-
-type cmdGetTaskStatus struct {
-	taskId string
-	ch     chan *pair
 }
 
 func (self *ReadyTask) String() string {
@@ -120,7 +63,11 @@ func (self *ResMan) OnStartReady(dagName string) (string, error) {
 	t := &cmdRunTask{dagName: dagName, ch: make(chan *pair, 1)}
 	self.cmdCh <- t
 	res := <-t.ch
-	return res.a0.(string), res.a1.(error)
+	if len(res.a0.(string)) > 0 {
+		return res.a0.(string), nil
+	}
+
+	return "", res.a1.(error)
 }
 
 func (self *ResMan) handleAddRunTask(t *cmdRunTask) {
@@ -137,7 +84,11 @@ func (self *ResMan) GetStatusByTaskId(taskId string) (string, error) {
 	cmd := &cmdGetTaskStatus{taskId: taskId, ch: make(chan *pair)}
 	self.cmdCh <- cmd
 	res := <-cmd.ch
-	return res.a0.(string), res.a1.(error)
+	if len(res.a0.(string)) > 0 {
+		return res.a0.(string), nil
+	}
+
+	return "", res.a1.(error)
 }
 
 func (self *ResMan) handleMesosError(t *cmdMesosError) {
@@ -190,7 +141,10 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		return
 	}
 
-	self.s.SetTaskDetails(td.DagName, status.GetMessage())
+	td.Details = status.GetMessage()
+	td.LastUpdate = time.Now()
+
+	//todo: update in storage
 
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED:
@@ -219,7 +173,11 @@ func (self *ResMan) OnRunJob(name string) (string, error) {
 	cmd := &cmdRunTask{dagName: name, ch: make(chan *pair, 1)}
 	self.cmdCh <- cmd
 	res := <-cmd.ch
-	return res.a0.(string), res.a1.(error)
+	if len(res.a0.(string)) > 0 {
+		return res.a0.(string), nil
+	}
+
+	return "", res.a1.(error)
 }
 
 func (self *ResMan) handleCmd(cmd interface{}) {
@@ -249,10 +207,13 @@ func (self *ResMan) handleCmd(cmd interface{}) {
 }
 
 func (self *ResMan) EventLoop() {
+	tick := time.NewTicker(3 * time.Second)
 	for {
 		select {
 		case cmd := <-self.cmdCh:
 			self.handleCmd(cmd)
+		case <-tick.C:
+			self.s.TimeoutCheck(self.timeoutSec)
 		}
 	}
 }
@@ -272,12 +233,32 @@ func (self *ResMan) getReadyTasks() []*ReadyTask {
 	return rts
 }
 
+func extraCpuMem(offer mesos.Offer) (int, int) {
+	var cpus int
+	var mem int
+
+	for _, r := range offer.Resources {
+		if r.GetName() == "cpus" && r.GetType() == mesos.Value_SCALAR {
+			cpus += int(r.GetScalar().GetValue())
+		}
+
+		if r.GetName() == "mem" && r.GetType() == mesos.Value_SCALAR {
+			mem += int(r.GetScalar().GetValue())
+		}
+	}
+
+	return cpus, mem
+}
+
 func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos.Offer,
 	ts []*ReadyTask) (launchCount int) {
-	for i, t := range ts {
+	cpus, mem := extraCpuMem(offer)
+	tasks := make([]mesos.TaskInfo, 0)
+	for i := 0; i < len(ts) && cpus > 0 && mem > 512; i++ {
+		t := ts[i]
 		self.taskId++
 		log.Debugf("Launching task: %d, name:%s\n", self.taskId, t.Name)
-		job, err := scheduler.GetJobByName(ts[i].Name)
+		job, err := scheduler.GetJobByName(t.Name)
 		if err != nil {
 			log.Error(err)
 			driver.DeclineOffer(offer.Id)
@@ -295,28 +276,32 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		}
 		self.executor.Command.Uris = taskUris
 
-		tasks := []mesos.TaskInfo{
-			mesos.TaskInfo{
-				Name: proto.String("go-task"),
-				TaskId: &mesos.TaskID{
-					Value: proto.String(genTaskId(t.td.DagName, t.Name)),
-				},
-				SlaveId:  offer.SlaveId,
-				Executor: self.executor,
-				Resources: []*mesos.Resource{
-					mesos.ScalarResource("cpus", 1),
-					mesos.ScalarResource("mem", 512),
-				},
+		task := mesos.TaskInfo{
+			Name: proto.String("go-task"),
+			TaskId: &mesos.TaskID{
+				Value: proto.String(genTaskId(t.td.DagName, t.Name)),
+			},
+			SlaveId:  offer.SlaveId,
+			Executor: self.executor,
+			Resources: []*mesos.Resource{
+				mesos.ScalarResource("cpus", 1),
+				mesos.ScalarResource("mem", 512),
 			},
 		}
 
-		self.s.SetTaskDagStateRunning(t.td.DagName)
+		tasks = append(tasks, task)
 
-		driver.LaunchTasks(offer.Id, tasks)
-		launchCount++
+		self.s.SetTaskDagStateRunning(t.td.DagName)
+		t.td.LastUpdate = time.Now()
 	}
 
-	return
+	if len(tasks) == 0 {
+		return 0
+	}
+
+	driver.LaunchTasks(offer.Id, tasks)
+
+	return len(tasks)
 }
 
 func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mesos.Offer) {
@@ -325,7 +310,8 @@ func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mes
 			driver: driver,
 			wait:   make(chan struct{}),
 		},
-		offers: offers}
+		offers: offers,
+	}
 
 	self.cmdCh <- cmd
 	<-cmd.wait
@@ -349,7 +335,8 @@ func (self *ResMan) OnStatusUpdate(driver *mesos.SchedulerDriver, status mesos.T
 			driver: driver,
 			wait:   make(chan struct{}),
 		},
-		status: status}
+		status: status,
+	}
 
 	self.cmdCh <- cmd
 	<-cmd.wait
@@ -362,7 +349,8 @@ func (self *ResMan) OnError(driver *mesos.SchedulerDriver, err string) {
 			driver: driver,
 			wait:   make(chan struct{}),
 		},
-		err: err}
+		err: err,
+	}
 
 	self.cmdCh <- cmd
 	<-cmd.wait
