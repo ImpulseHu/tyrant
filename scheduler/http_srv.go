@@ -2,8 +2,11 @@ package scheduler
 
 import (
 	"encoding/json"
+	"github.com/hoisie/web"
+	log "github.com/ngaut/logging"
 	"io/ioutil"
 	_ "net/http/pprof"
+	"strings"
 	"time"
 
 	"github.com/hoisie/web"
@@ -148,14 +151,51 @@ func dagNew(ctx *web.Context) string {
 	var dag DagMeta
 	err = json.Unmarshal(b, &dag)
 	dag.CreateTs = time.Now().Unix()
+
+	var params map[string]interface{}
+	err = json.Unmarshal(b, &params)
+
 	if err != nil {
 		return responseError(ctx, -2, err.Error())
 	}
+
+	if b, exists := params["jobs"]; exists {
+		jobNames := strings.Split(b.(string), "\n")
+		for _, line := range jobNames {
+			pair := strings.Split(line, ",")
+			jobName := strings.TrimSpace(pair[0])
+			parentName := ""
+			if len(pair) == 2 {
+				parentName = strings.TrimSpace(pair[1])
+			}
+			if len(jobName) > 0 {
+				j := NewDagJob(jobName, parentName)
+				log.Info(j)
+				dag.AddDagJob(j)
+			}
+		}
+	}
+
 	err = dag.Save()
 	if err != nil {
 		return responseError(ctx, -3, err.Error())
 	}
 	return responseSuccess(ctx, dag)
+}
+
+func dagRemove(ctx *web.Context) string {
+	name, b := ctx.Params["name"]
+	if !b {
+		return responseError(ctx, -1, "dag name is needed")
+	}
+	dag := GetDagFromName(name)
+	if dag != nil {
+		if err := dag.Remove(); err != nil {
+			return responseError(ctx, -2, err.Error())
+		}
+		return responseSuccess(ctx, dag)
+	}
+	return responseError(ctx, -3, "no such dag")
 }
 
 func dagJobAdd(ctx *web.Context) string {
@@ -245,6 +285,7 @@ func (srv *Server) Serve() {
 	web.Post("/job/remove", jobRemove)
 	web.Post("/job/update", jobUpdate)
 	web.Post("/dag/new", dagNew)
+	web.Post("/dag/remove", dagRemove)
 	web.Post("/dag/job/add", dagJobAdd)
 	web.Post("/dag/job/remove", dagJobRemove)
 	web.Post("/dag/job/run", dagJobRun)

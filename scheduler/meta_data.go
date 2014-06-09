@@ -34,6 +34,7 @@ type Job struct {
 type DagMeta struct {
 	Id            int64  `db:"id" json:"id"`
 	Name          string `db:"name" json:"name"`
+	Owner         string `db:"owner" json:"owner"`
 	Schedule      string `db:"schedule" json:"schedule"`
 	CreateTs      int64  `db:"create_ts" json:"create_ts"`
 	LastSuccessTs int64  `db:"last_success_ts" json:"last_success_ts"`
