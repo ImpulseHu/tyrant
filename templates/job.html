@@ -57,7 +57,6 @@
         <td> <%= name %> </td>
         <td> <%= executor %> </td>
         <td> <%= owner %> </td>
-        <td> <%= command %> </td>
         <td> <%= date %> </td>
         <td>  <a href="#" class="">Edit</a> | <a href="javascript:void(0)" class="remove-job-btn" data-jobname="<%= name %>">Remove</a> </td>
       </tr>
@@ -72,13 +71,14 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand" href="#">Tyrant</a>
+          <a class="navbar-brand" href="/">Tyrant</a>
         </div>
         <div class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
-            <li><a>Job</a></li>
-            <li><a>Job Group</a></li>
-            <li><a>Task Status</a></li>
+            <li><a href="/job">Job</a></li>
+            <li><a href="/dag">Job Group</a></li>
+            <li><a href="/status">Task Status</a></li>
+            <li><a href="http://test451.hy01.wandoujia.com:8000/">Executor Upload</a></li>
           </ul>
         </div><!--/.nav-collapse -->
       </div>
@@ -86,7 +86,7 @@
 
     <div class="container content">
       <div class="row">
-      <div class="col-md-7">
+      <div class="col-md-8">
         <div class="jobs">
           <table class="table table-striped table-hover">
             <thead>
@@ -94,7 +94,6 @@
                 <th>Name</th>
                 <th>Executor</th>
                 <th>Owner</th>
-                <th>Command</th>
                 <th>Created Date</th>
                 <th></th>
               </tr>
@@ -104,7 +103,7 @@
           </table>
       </div>
       </div>
-      <div class="col-md-5">
+      <div class="col-md-3">
         <div id="message-box" class="alert alert-success">
           <a href="#" class="alert-link message"></a>
         </div>
@@ -121,17 +120,12 @@
 
           <div class="form-group">
             <label for="inputExecutorFlag" class="control-label">Executor Flags</label>
-            <input type="text" class="form-control" name="executor_flag" id="inputExecutorFlag">
+            <textarea class="form-control" name="executor_flag" rows="3"></textarea>
           </div>
 
           <div class="form-group">
             <label for="inputOwner" class="control-label">Owner</label>
             <input type="text" class="form-control" name="owner" id="inputOwner">
-          </div>
-
-          <div class="form-group">
-            <label for="inputCommand" class="control-label">Command</label>
-            <textarea class="form-control" name="command" rows="3"></textarea>
           </div>
 
           <div class="form-group">
