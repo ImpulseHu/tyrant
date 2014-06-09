@@ -257,7 +257,7 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 			return
 		}
 
-		self.executor.Command.Value = proto.String(job.Executor + ` "` + job.Command + `"`)
+		self.executor.Command.Value = proto.String(job.Executor + ` "` + job.ExecutorFlags + `"`)
 		self.executor.ExecutorId = &mesos.ExecutorID{Value: proto.String("tyrantExecutorId_" + strconv.Itoa(self.taskId))}
 		log.Debug(*self.executor.Command.Value)
 

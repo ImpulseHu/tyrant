@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"database/sql"
+
 	"github.com/coopernurse/gorp"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
@@ -33,7 +34,6 @@ func NewDbMap() *gorp.DbMap {
 
 	tbl := dbmap.AddTableWithName(Job{}, "jobs").SetKeys(true, "Id")
 	tbl.ColMap("name").SetMaxSize(512).SetUnique(true)
-	tbl.ColMap("command").SetMaxSize(4096)
 	tbl.ColMap("executor").SetMaxSize(4096)
 	tbl.ColMap("executor_flags").SetMaxSize(4096)
 	tbl.ColMap("uris").SetMaxSize(2048)
