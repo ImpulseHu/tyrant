@@ -2,10 +2,11 @@ package scheduler
 
 import (
 	"encoding/json"
-	"github.com/hoisie/web"
 	"io/ioutil"
 	_ "net/http/pprof"
 	"time"
+
+	"github.com/hoisie/web"
 )
 
 var pages map[string]string
@@ -22,7 +23,8 @@ func init() {
 }
 
 type Notifier interface {
-	OnRunJob(name string) (string, error)
+	OnRunJob(name string) (string, error) //taskId, error
+	GetStatusByTaskId(taskId string) (string, error)
 }
 
 type Server struct {

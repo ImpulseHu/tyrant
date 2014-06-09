@@ -12,6 +12,13 @@ const (
 	taskRuning = 2
 )
 
+var (
+	statusMap = map[int]string{
+		taskReady:  "ready",
+		taskRuning: "running",
+	}
+)
+
 type Task struct {
 	Name string
 	job  *DagJob
@@ -22,6 +29,7 @@ type TaskDag struct {
 	Dag     *DGraph
 	state   int
 	DagMeta *DagMeta
+	Details string
 }
 
 func NewTaskDag(name string, meta *DagMeta) *TaskDag {
@@ -124,6 +132,14 @@ func (self *TaskDag) RemoveTask(name string) {
 	self.Dag.RemoveVertexByName(name)
 }
 
+func statusToStr(status int) string {
+	return statusMap[status]
+}
+
+func (self *TaskDag) Status() (string, string) {
+	return statusToStr(self.state), self.Details
+}
+
 type TaskScheduler struct {
 	tds map[string]*TaskDag
 }
@@ -185,6 +201,16 @@ func (self *TaskScheduler) SetTaskDagStateReady(name string) {
 	}
 
 	td.state = taskReady
+}
+
+func (self *TaskScheduler) SetTaskDetails(dagName string, details string) {
+	//todo:log to storage
+	td, ok := self.tds[dagName]
+	if !ok {
+		return
+	}
+
+	td.Details = details
 }
 
 func (self *TaskScheduler) TryAddTaskDag(name string) (*TaskDag, error) {

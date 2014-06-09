@@ -46,12 +46,7 @@ type cmdMesosStatusUpdate struct {
 
 type cmdRunTask struct {
 	dagName string
-	ch      chan *addTaskRes //return task id
-}
-
-type addTaskRes struct {
-	err    error
-	taskId string
+	ch      chan *pair //return task id and error
 }
 
 func NewResMan() *ResMan {
@@ -107,26 +102,42 @@ type ReadyTask struct {
 	td *scheduler.TaskDag
 }
 
+type pair struct {
+	a0 interface{}
+	a1 interface{}
+}
+
+type cmdGetTaskStatus struct {
+	taskId string
+	ch     chan *pair
+}
+
 func (self *ReadyTask) String() string {
 	return self.td.DagName + ":  " + fmt.Sprintf("%+v", self.Task)
 }
 
 func (self *ResMan) OnStartReady(dagName string) (string, error) {
-	t := &cmdRunTask{dagName: dagName, ch: make(chan *addTaskRes, 1)}
+	t := &cmdRunTask{dagName: dagName, ch: make(chan *pair, 1)}
 	self.cmdCh <- t
 	res := <-t.ch
-	return res.taskId, res.err
+	return res.a0.(string), res.a1.(error)
 }
 
 func (self *ResMan) handleAddRunTask(t *cmdRunTask) {
-	td, err := self.s.TryAddTaskDag(t.dagName)
+	_, err := self.s.TryAddTaskDag(t.dagName)
 	if err != nil {
-		t.ch <- &addTaskRes{err: err}
+		t.ch <- &pair{a1: err}
 		return
 	}
 
-	t.ch <- &addTaskRes{err: err, taskId: strconv.Itoa(int(td.DagMeta.Id))}
+	t.ch <- &pair{a0: t.dagName, a1: err}
+}
 
+func (self *ResMan) GetStatusByTaskId(taskId string) (string, error) {
+	cmd := &cmdGetTaskStatus{taskId: taskId, ch: make(chan *pair)}
+	self.cmdCh <- cmd
+	res := <-cmd.ch
+	return res.a0.(string), res.a1.(error)
 }
 
 func (self *ResMan) handleMesosError(t *cmdMesosError) {
@@ -174,18 +185,25 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	taskId := *status.TaskId
 	ti := decodeTaskId(*taskId.Value)
 	log.Debugf("Received task %+v status: %+v", ti, status)
+	td := self.s.GetTaskDag(ti.DagName)
+	if td == nil {
+		return
+	}
+
+	self.s.SetTaskDetails(td.DagName, status.GetMessage())
+
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED:
 		self.removeTask(ti)
 	case mesos.TaskState_TASK_FAILED:
-		//todo: retry
-		self.removeTask(ti)
+		//self.removeTask(ti)
+		self.s.RemoveTaskDag(td.DagName)
 	case mesos.TaskState_TASK_KILLED:
-		//todo:
-		self.removeTask(ti)
+		//self.removeTask(ti)
+		self.s.RemoveTaskDag(td.DagName)
 	case mesos.TaskState_TASK_LOST:
-		//todo:
-		self.removeTask(ti)
+		//self.removeTask(ti)
+		self.s.RemoveTaskDag(td.DagName)
 	case mesos.TaskState_TASK_STAGING:
 		//todo: update something
 	case mesos.TaskState_TASK_STARTING:
@@ -198,10 +216,10 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 }
 
 func (self *ResMan) OnRunJob(name string) (string, error) {
-	cmd := &cmdRunTask{dagName: name, ch: make(chan *addTaskRes, 1)}
+	cmd := &cmdRunTask{dagName: name, ch: make(chan *pair, 1)}
 	self.cmdCh <- cmd
 	res := <-cmd.ch
-	return res.taskId, res.err
+	return res.a0.(string), res.a1.(error)
 }
 
 func (self *ResMan) handleCmd(cmd interface{}) {
@@ -218,6 +236,15 @@ func (self *ResMan) handleCmd(cmd interface{}) {
 	case *cmdMesosStatusUpdate:
 		t := cmd.(*cmdMesosStatusUpdate)
 		self.handleMesosStatusUpdate(t)
+	case *cmdGetTaskStatus:
+		t := cmd.(*cmdGetTaskStatus)
+		td := self.s.GetTaskDag(t.taskId)
+		if td == nil {
+			t.ch <- &pair{a1: fmt.Errorf("%s not exist", t.taskId)}
+			return
+		}
+		a0, a1 := td.Status()
+		t.ch <- &pair{a0: a0, a1: a1}
 	}
 }
 
