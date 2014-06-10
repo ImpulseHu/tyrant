@@ -1,8 +1,9 @@
 package scheduler
 
 import (
-	log "github.com/ngaut/logging"
 	"strconv"
+
+	log "github.com/ngaut/logging"
 )
 
 // Job define
