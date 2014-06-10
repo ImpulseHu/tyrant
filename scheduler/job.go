@@ -20,6 +20,7 @@ type Job struct {
 	CreateTs      int64  `db:"create_ts" json:"create_ts"`
 	LastSuccessTs int64  `db:"last_success_ts" json:"last_success_ts"`
 	LastErrTs     int64  `db:"last_error_ts" json:"last_error_ts"`
+	LastStatus    string `db:"last_status" json:"last_status"`
 	Cpus          int    `db:"cpus" json:"cpus"`
 	Mem           int    `db:"mem" json:"mem"`
 	Disk          int64  `db:"disk" json:"disk"`

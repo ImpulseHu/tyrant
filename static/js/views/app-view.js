@@ -3,27 +3,23 @@ var app = app || {};
 	'use strict';
 
 	app.JobNewView = Backbone.View.extend({
-
-		el : '#new-job-view',
+		template : _.template($("#job-new-template").html()),
 
 		events: {
 			'click .save-btn': 'onSaveClick',
 		},
 
 		initialize: function () {
-			this.$name = $('#name');
-			this.$executor = $('#executor');
-			this.$executor_flag = $('#executor-flag');
-			this.$owner = $('#owner');
 		},
 
 		onSaveClick : function () {
 			var job = new app.Job();
 			job.save({
-				name: this.$name.val(),
-				executor: this.$executor.val(),
-				executor_flag : this.$executor_flag.val(),
-				owner : this.$owner.val()
+				name: $('#name').val(),
+				executor: $('#executor').val(),
+				executor_flag : $('#executor-flag').val(),
+				uris : $('#uris').val(),
+				owner : $('#owner').val()
 			}, {
 				success : function(j, e) {
 					j.set('id', e.data.id);
@@ -33,7 +29,12 @@ var app = app || {};
 					alert(e.responseJSON.msg);
 				}
 			});
-		}
+		},
+
+		render: function() {
+          this.$el.html(this.template());
+          return this;
+        }
 	});
 
 	app.ModalContent = Backbone.View.extend({
@@ -50,6 +51,7 @@ var app = app || {};
 	    		name : $(".name-input").val(),
 	    		executor : $(".executor-input").val(),
 	    	    executor_flag : $(".executor-flag-input").val(),
+				uris : $('.uris').val(),
 	    	    owner : $(".owner-input").val()
 	    	});
 	        //modal.preventClose();
@@ -103,19 +105,36 @@ var app = app || {};
 		el: '#tyrantapp',
 
 		events: {
+			"click .job-page" : "jobPage",
+			"click .status-page" : "statusPage"
 		},
 
 		initialize: function () {
-			this.$list = $('#job-list');
 			this.listenTo(app.jobs, 'add', this.addOne);
-			app.jobs.fetch({success: function(d, e) {
+		},
+
+		render: function () {
+			this.jobPage();
+		},
+
+		jobPage : function () {
+			var list_tmpl = _.template($("#job-view-template").html());
+			var newJobView = new app.JobNewView();
+			this.$el.html(list_tmpl());
+			$('#new-job-form').html(newJobView.render().el);
+
+ 			this.$list = $('#job-list');
+
+ 			app.jobs.fetch({success: function(d, e) {
 				_.each(e.data, function(o){ 
 					app.jobs.add(o); 
 				});
 			}, reset: true});
 		},
 
-		render: function () {
+		statusPage : function() {
+			var tmpl = _.template($("#status-view-template").html())
+			this.$el.html(tmpl());
 		},
 
 		addOne: function (job) {

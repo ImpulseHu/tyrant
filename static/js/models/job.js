@@ -7,7 +7,9 @@ var app = app || {};
 		defaults: {
 			name : "",
 			executor : "",
+			last_status : "",
 			executor_flag : "",
+			uris : "",
 			owner : "",
 		},
 		urlRoot: '/job',
