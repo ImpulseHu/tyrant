@@ -72,11 +72,18 @@ var app = app || {};
 		events: {
 			'click .edit-btn': 'onEditClick',
 			'click .remove-btn': 'onRemoveClick',
+			'click .force-run-btn' : 'onRunClick',
 		},
 
 		initialize: function () {
 			this.listenTo(this.model, 'change', this.render);
-		}, 
+		},
+
+		onRunClick: function () {
+			$.post('/job/run/' + this.model.get('id'), function(e) {
+				alert(e);
+			})
+		},
 
 		onRemoveClick: function () {
 			var that = this;

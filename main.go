@@ -16,6 +16,6 @@ func main() {
 	go func() {
 		resScheduler.Run()
 	}()
-	s := scheduler.NewServer(":9090")
+	s := scheduler.NewServer(":9090", resScheduler)
 	s.Serve()
 }

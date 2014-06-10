@@ -23,11 +23,11 @@ var (
 	s *Server
 )
 
-func NewServer(addr string) *Server {
+func NewServer(addr string, notifier Notifier) *Server {
 	if s != nil {
 		return s
 	}
-	s = &Server{addr, nil}
+	s = &Server{addr, notifier}
 	return s
 }
 
@@ -127,10 +127,12 @@ func jobRun(ctx *web.Context, id string) string {
 	if s.notifier != nil && j != nil {
 		taskId, err := s.notifier.OnRunJob(j.Name)
 		if err != nil {
+			log.Debug(err.Error())
 			return responseError(ctx, -2, err.Error())
 		}
 		return responseSuccess(ctx, taskId)
 	}
+	log.Debug("Notifier not found")
 	return responseError(ctx, -3, "notifier not found")
 }
 
