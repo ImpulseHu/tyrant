@@ -1,5 +1,6 @@
 package resourceScheduler
 
+/*
 import (
 	"flag"
 	"fmt"
@@ -401,3 +402,4 @@ func (self *ResMan) Run() {
 	<-self.exit
 	driver.Stop(false)
 }
+*/

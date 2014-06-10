@@ -1,0 +1,92 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+    <link href="http://cdn.staticfile.org/twitter-bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet">
+	<title>Tyrant</title>
+</head>
+
+<body>
+	<div class="container">
+		<div id="edit-modal-view"></div>
+		<div class="row">
+			<div class="col-md-6">
+				<section id="tyrantapp">
+					<table class="table">
+						<tr>
+							<th>ID</th>
+							<th>Name</th>
+							<th></th>
+						</tr>
+						<tbody id="job-list">
+
+						</tbody>
+					</table>
+				</section>
+			</div>
+			<div class="col-md-4">
+				<section id="new-job-view">
+					<div class="form-group">
+						<label>Name</label>	
+						<input type="text" class="form-control" id="name"></input>
+					</div>
+					<div class="form-group">
+						<label>Executor</label>	
+						<input type="text" class="form-control" id="executor"></input>
+					</div>
+					<div class="form-group">
+						<label>Executor Flag</label>	
+						<input type="text" class="form-control" id="executor-flag"></input>
+					</div>
+					<div class="form-group">
+						<label>Owner</label>	
+						<input type="text" class="form-control" id="owner"></input>
+					</div>
+					<button class="btn btn-primary save-btn">Save</button>
+				</section>
+			</div>
+		</div>
+	</div>
+	<script type="text/template" id="job-item-template">
+		<td><%= id %></td>
+		<td><%= name %></td>
+		<td>
+			<a href="javascript:void(0)" class="edit-btn">Edit</a> | 
+			<a href="javascript:void(0)" class="force-run-btn">Force Run</a> | 
+			<a href="javascript:void(0)" class="remove-btn">Remove</a>
+		</td>
+	</script>
+	<script type="text/template" id="edit-modal-template">
+		<div class="form-group">
+			<label>Name</label>	
+			<input type="text" class="form-control name-input" value="<%= name %>"></input>
+		</div>
+		<div class="form-group">
+			<label>Executor</label>	
+			<input type="text" class="form-control executor-input" value="<%= executor %>"></input>
+		</div>
+		<div class="form-group">
+			<label>Executor Flag</label>	
+			<input type="text" class="form-control executor-flag-input" value="<%= executor_flag %>"></input>
+		</div>
+		<div class="form-group">
+			<label>owner</label>	
+			<input type="text" class="form-control owner-input" value="<%= owner %>"></input>
+		</div>
+	</script>
+	<script src="components/jquery/jquery.js"></script>
+	<script src="components/underscore/underscore.js"></script>
+	<script src="components/backbone/backbone.js"></script>
+    <script src="http://cdn.staticfile.org/twitter-bootstrap/3.1.1/js/bootstrap.min.js"></script>
+	<script src="components/backbone/backbone.bootstrap-modal.js"></script>
+
+	<script src="js/models/job.js"></script>
+	<script src="js/collections/jobs.js"></script>
+	<script src="js/routers/router.js"></script>
+
+	<script src="js/views/app-view.js"></script>
+	<script src="js/app.js"></script>
+</body>
+
+</html>

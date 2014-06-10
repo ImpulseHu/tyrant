@@ -160,12 +160,10 @@
             });
           });
         }
-        load_job_list()
+        load_job_list();
 
         $("#add-job-form").submit(function(event) {
           var s = JSON.stringify($(this).serializeObject());
-          console.log(s);
-          $("#message-box").show();
           $.ajax({
             contentType: "application/json",
             data : s,
@@ -175,9 +173,17 @@
             success: function(data){
               if (data.ret == 0) {
                 load_job_list()
+                $("#message-box").html("Create Job Success");
+                $("#message-box").addClass("alert-success");
+                $("#message-box").show();
                 setTimeout(function() {
                   $("#message-box").hide();
                 }, 1000);
+              } else {
+                $("#message-box").removeClass("alert-success");
+                $("#message-box").addClass("bg-danger");
+                $("#message-box").html(data.msg);
+                $("#message-box").show();
               }
             }
           })
