@@ -8,7 +8,7 @@ var app = app || {};
 			name : "",
 			executor : "",
 			last_status : "",
-			executor_flag : "",
+			executor_flags : "",
 			uris : "",
 			owner : "",
 		},

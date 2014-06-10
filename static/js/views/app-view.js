@@ -17,7 +17,7 @@ var app = app || {};
 			job.save({
 				name: $('#name').val(),
 				executor: $('#executor').val(),
-				executor_flag : $('#executor-flag').val(),
+				executor_flags : $('#executor-flag').val(),
 				uris : $('#uris').val(),
 				owner : $('#owner').val()
 			}, {
@@ -50,8 +50,8 @@ var app = app || {};
 	    	{
 	    		name : $(".name-input").val(),
 	    		executor : $(".executor-input").val(),
-	    	    executor_flag : $(".executor-flag-input").val(),
-				uris : $('.uris').val(),
+	    	    executor_flags : $(".executor-flag-input").val(),
+				uris : $('.uris-input').val(),
 	    	    owner : $(".owner-input").val()
 	    	});
 	        //modal.preventClose();
