@@ -124,7 +124,7 @@ func jobGet(ctx *web.Context, id string) string {
 
 func jobRun(ctx *web.Context, id string) string {
 	j, _ := GetJobById(id)
-	if s.notifier != nil {
+	if s.notifier != nil && j != nil {
 		taskId, err := s.notifier.OnRunJob(j.Name)
 		if err != nil {
 			return responseError(ctx, -2, err.Error())
@@ -138,6 +138,7 @@ func (srv *Server) Serve() {
 	web.Get("/job/list", jobList)
 	web.Get("/job/(.*)", jobGet)
 	web.Post("/job", jobNew)
+	web.Post("/job/run/(.*)", jobRun)
 	web.Delete("/job/(.*)", jobRemove)
 	web.Put("/job/(.*)", jobUpdate)
 
