@@ -1,17 +1,6 @@
 package resourceScheduler
 
-import (
-	"encoding/base64"
-	"encoding/json"
-	"strings"
-
-	log "github.com/ngaut/logging"
-)
-
-type TyrantTaskId struct {
-	Id       string
-	TaskName string
-}
+import "strings"
 
 type cmdRunTask struct {
 	Id string
@@ -21,31 +10,6 @@ type cmdRunTask struct {
 type cmdGetTaskStatus struct {
 	taskId string
 	ch     chan *pair
-}
-
-func genTaskId(jid string, taskName string) string {
-	if buf, err := json.Marshal(TyrantTaskId{Id: jid, TaskName: taskName}); err != nil {
-		log.Fatal(err)
-	} else {
-		return base64.StdEncoding.EncodeToString(buf)
-	}
-
-	return ""
-}
-
-func decodeTaskId(str string) *TyrantTaskId {
-	data, err := base64.StdEncoding.DecodeString(str)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var ti TyrantTaskId
-	err = json.Unmarshal(data, &ti)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return &ti
 }
 
 func splitTrim(s string) []string {
@@ -96,4 +60,8 @@ func (self *TaskQueue) Each(f func(string, *Task) bool) {
 			break
 		}
 	}
+}
+
+func (self *TaskQueue) Length() int {
+	return len(self.tasks)
 }

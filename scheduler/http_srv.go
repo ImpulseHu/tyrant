@@ -2,11 +2,12 @@ package scheduler
 
 import (
 	"encoding/json"
-	"github.com/hoisie/web"
-	log "github.com/ngaut/logging"
 	"io/ioutil"
 	_ "net/http/pprof"
 	"time"
+
+	"github.com/hoisie/web"
+	log "github.com/ngaut/logging"
 )
 
 type Notifier interface {
@@ -123,9 +124,13 @@ func jobGet(ctx *web.Context, id string) string {
 }
 
 func jobRun(ctx *web.Context, id string) string {
-	j, _ := GetJobById(id)
+	j, err := GetJobById(id)
+	if err != nil {
+		return responseError(ctx, -1, err.Error())
+	}
+
 	if s.notifier != nil && j != nil {
-		taskId, err := s.notifier.OnRunJob(j.Name)
+		taskId, err := s.notifier.OnRunJob(id)
 		if err != nil {
 			log.Debug(err.Error())
 			return responseError(ctx, -2, err.Error())

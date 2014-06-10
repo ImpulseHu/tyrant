@@ -64,7 +64,7 @@ func (self *ResMan) OnStartReady(jid string) (string, error) {
 	return "", res.a1.(error)
 }
 
-func (self *ResMan) addTask(id string) error {
+func (self *ResMan) addReadyTask(id string) error {
 	if self.ready.Exist(id) {
 		return fmt.Errorf("%s already exist: %+v", id, self.ready.Get(id))
 	}
@@ -73,17 +73,22 @@ func (self *ResMan) addTask(id string) error {
 	if err != nil {
 		return err
 	}
+	t := &Task{Id: id, job: job, state: taskReady}
+	self.ready.Add(id, t)
+	log.Debugf("ready task %+v, total count:%d", t, self.ready.Length())
 
-	self.ready.Add(id, &Task{job: job, state: taskReady})
 	return nil
 }
 
 func (self *ResMan) handleAddRunTask(t *cmdRunTask) {
-	err := self.addTask(t.Id)
+	err := self.addReadyTask(t.Id)
 	if err != nil {
+		log.Warning(err)
 		t.ch <- &pair{a1: err}
 		return
 	}
+
+	log.Debug("add task, taskId:", t.Id)
 
 	t.ch <- &pair{a0: t.Id, a1: err}
 }
@@ -130,6 +135,7 @@ func (self *ResMan) handleMesosOffers(t *cmdMesosOffers) {
 
 	//remove from ready queue
 	for i := 0; i < idx; i++ {
+		log.Debugf("remove %+v from ready queue", ts[i])
 		self.ready.Del(ts[i].Id)
 	}
 
@@ -151,15 +157,16 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	}()
 
 	taskId := *status.TaskId
-	ti := decodeTaskId(*taskId.Value)
-	log.Debugf("Received task %+v status: %+v", ti, status)
-	id := ti.Id
+	id := *taskId.Value
+	log.Debugf("Received task %+v status: %+v", id, status)
 	j := self.running.Get(id)
-	if j != nil {
+	if j == nil {
 		return
 	}
 
-	j.Details = status.GetMessage()
+	if status.Message != nil {
+		j.Details = status.GetMessage()
+	}
 	j.LastUpdate = time.Now()
 
 	//todo: update in storage
@@ -184,6 +191,7 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 }
 
 func (self *ResMan) OnRunJob(id string) (string, error) {
+	log.Debug("OnRunJob", id)
 	cmd := &cmdRunTask{Id: id, ch: make(chan *pair, 1)}
 	self.cmdCh <- cmd
 	res := <-cmd.ch
@@ -231,6 +239,7 @@ func (self *ResMan) TimeoutCheck(sec int) {
 	})
 
 	for _, taskId := range timeoutTasks {
+		log.Warning("remove timeout task %s", taskId)
 		self.running.Del(taskId)
 	}
 }
@@ -250,10 +259,13 @@ func (self *ResMan) EventLoop() {
 func (self *ResMan) getReadyTasks() []*Task {
 	//todo:check if schedule time is match
 	var rts []*Task
-	self.running.Each(func(key string, t *Task) bool {
+	self.ready.Each(func(key string, t *Task) bool {
+		log.Debugf("ready task:%+v", t)
 		rts = append(rts, t)
 		return true
 	})
+
+	log.Debugf("ready tasks: %+v", rts)
 
 	return rts
 }
@@ -299,7 +311,7 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		task := mesos.TaskInfo{
 			Name: proto.String("go-task"),
 			TaskId: &mesos.TaskID{
-				Value: proto.String(genTaskId(strconv.Itoa(int(job.Id)), t.Id)),
+				Value: proto.String(t.Id),
 			},
 			SlaveId:  offer.SlaveId,
 			Executor: self.executor,
@@ -313,6 +325,7 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		t.state = taskRuning
 
 		t.LastUpdate = time.Now()
+		self.running.Add(t.Id, t)
 	}
 
 	if len(tasks) == 0 {
