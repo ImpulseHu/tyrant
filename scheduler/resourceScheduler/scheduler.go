@@ -1,12 +1,10 @@
 package resourceScheduler
 
-/*
 import (
 	"flag"
 	"fmt"
-	"time"
-
 	"strconv"
+	"time"
 
 	log "github.com/ngaut/logging"
 
@@ -16,12 +14,13 @@ import (
 )
 
 type ResMan struct {
-	s          *scheduler.TaskScheduler
 	executor   *mesos.ExecutorInfo
 	exit       chan bool
 	taskId     int
 	timeoutSec int
 	cmdCh      chan interface{}
+	running    *TaskQueue
+	ready      *TaskQueue
 }
 
 type mesosDriver struct {
@@ -45,23 +44,17 @@ type cmdMesosStatusUpdate struct {
 }
 
 func NewResMan() *ResMan {
-	return &ResMan{s: scheduler.NewTaskScheduler(), exit: make(chan bool),
+	return &ResMan{
+		ready:      NewTaskQueue(),
+		running:    NewTaskQueue(),
+		exit:       make(chan bool),
 		cmdCh:      make(chan interface{}, 1000),
 		timeoutSec: 30,
 	}
 }
 
-type ReadyTask struct {
-	*scheduler.Task
-	td *scheduler.TaskDag
-}
-
-func (self *ReadyTask) String() string {
-	return self.td.DagName + ":  " + fmt.Sprintf("%+v", self.Task)
-}
-
-func (self *ResMan) OnStartReady(dagName string) (string, error) {
-	t := &cmdRunTask{dagName: dagName, ch: make(chan *pair, 1)}
+func (self *ResMan) OnStartReady(jid string) (string, error) {
+	t := &cmdRunTask{Id: jid, ch: make(chan *pair, 1)}
 	self.cmdCh <- t
 	res := <-t.ch
 	if len(res.a0.(string)) > 0 {
@@ -71,14 +64,28 @@ func (self *ResMan) OnStartReady(dagName string) (string, error) {
 	return "", res.a1.(error)
 }
 
+func (self *ResMan) addTask(id string) error {
+	if self.ready.Exist(id) {
+		return fmt.Errorf("%s already exist: %+v", id, self.ready.Get(id))
+	}
+
+	job, err := scheduler.GetJobById(id)
+	if err != nil {
+		return err
+	}
+
+	self.ready.Add(id, &Task{job: job, state: taskReady})
+	return nil
+}
+
 func (self *ResMan) handleAddRunTask(t *cmdRunTask) {
-	_, err := self.s.TryAddTaskDag(t.dagName)
+	err := self.addTask(t.Id)
 	if err != nil {
 		t.ch <- &pair{a1: err}
 		return
 	}
 
-	t.ch <- &pair{a0: t.dagName, a1: err}
+	t.ch <- &pair{a0: t.Id, a1: err}
 }
 
 func (self *ResMan) GetStatusByTaskId(taskId string) (string, error) {
@@ -121,10 +128,19 @@ func (self *ResMan) handleMesosOffers(t *cmdMesosOffers) {
 		left += n
 	}
 
+	//remove from ready queue
+	for i := 0; i < idx; i++ {
+		self.ready.Del(ts[i].Id)
+	}
+
 	//decline left offers
 	for i := idx; i < len(offers); i++ {
 		driver.DeclineOffer(offers[i].Id)
 	}
+}
+
+func (self *ResMan) removeRunningTask(id string) {
+	self.running.Del(id)
 }
 
 func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
@@ -137,28 +153,25 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	taskId := *status.TaskId
 	ti := decodeTaskId(*taskId.Value)
 	log.Debugf("Received task %+v status: %+v", ti, status)
-	td := self.s.GetTaskDag(ti.DagName)
-	if td == nil {
+	id := ti.Id
+	j := self.running.Get(id)
+	if j != nil {
 		return
 	}
 
-	td.Details = status.GetMessage()
-	td.LastUpdate = time.Now()
+	j.Details = status.GetMessage()
+	j.LastUpdate = time.Now()
 
 	//todo: update in storage
-
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED:
-		self.removeTask(ti)
+		self.removeRunningTask(id)
 	case mesos.TaskState_TASK_FAILED:
-		//self.removeTask(ti)
-		self.s.RemoveTaskDag(td.DagName)
+		self.removeRunningTask(id)
 	case mesos.TaskState_TASK_KILLED:
-		//self.removeTask(ti)
-		self.s.RemoveTaskDag(td.DagName)
+		self.removeRunningTask(id)
 	case mesos.TaskState_TASK_LOST:
-		//self.removeTask(ti)
-		self.s.RemoveTaskDag(td.DagName)
+		self.removeRunningTask(id)
 	case mesos.TaskState_TASK_STAGING:
 		//todo: update something
 	case mesos.TaskState_TASK_STARTING:
@@ -170,8 +183,8 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	}
 }
 
-func (self *ResMan) OnRunJob(name string) (string, error) {
-	cmd := &cmdRunTask{dagName: name, ch: make(chan *pair, 1)}
+func (self *ResMan) OnRunJob(id string) (string, error) {
+	cmd := &cmdRunTask{Id: id, ch: make(chan *pair, 1)}
 	self.cmdCh <- cmd
 	res := <-cmd.ch
 	if len(res.a0.(string)) > 0 {
@@ -196,14 +209,29 @@ func (self *ResMan) handleCmd(cmd interface{}) {
 		t := cmd.(*cmdMesosStatusUpdate)
 		self.handleMesosStatusUpdate(t)
 	case *cmdGetTaskStatus:
-		t := cmd.(*cmdGetTaskStatus)
-		td := self.s.GetTaskDag(t.taskId)
-		if td == nil {
-			t.ch <- &pair{a1: fmt.Errorf("%s not exist", t.taskId)}
+		ts := cmd.(*cmdGetTaskStatus)
+		t := self.running.Get(ts.taskId)
+		if t != nil {
+			ts.ch <- &pair{a1: fmt.Errorf("%s not exist", ts.taskId)}
 			return
 		}
-		a0, a1 := td.Status()
-		t.ch <- &pair{a0: a0, a1: a1}
+		a0, a1 := t.Status()
+		ts.ch <- &pair{a0: a0, a1: a1}
+	}
+}
+
+func (self *ResMan) TimeoutCheck(sec int) {
+	var timeoutTasks []string
+	self.running.Each(func(key string, t *Task) bool {
+		if t.state == taskRuning && time.Since(t.LastUpdate).Seconds() > float64(sec) {
+			log.Warning("%+v timeout", t)
+			timeoutTasks = append(timeoutTasks, key)
+		}
+		return true
+	})
+
+	for _, taskId := range timeoutTasks {
+		self.running.Del(taskId)
 	}
 }
 
@@ -214,22 +242,18 @@ func (self *ResMan) EventLoop() {
 		case cmd := <-self.cmdCh:
 			self.handleCmd(cmd)
 		case <-tick.C:
-			self.s.TimeoutCheck(self.timeoutSec)
+			self.TimeoutCheck(self.timeoutSec)
 		}
 	}
 }
 
-func (self *ResMan) getReadyTasks() []*ReadyTask {
-	tds := self.s.GetReadyDags()
-	log.Debugf("ready dag: %+v", tds)
-	rts := make([]*ReadyTask, 0)
+func (self *ResMan) getReadyTasks() []*Task {
 	//todo:check if schedule time is match
-	for _, td := range tds {
-		tasks := td.GetReadyTask()
-		for _, t := range tasks {
-			rts = append(rts, &ReadyTask{Task: t, td: td})
-		}
-	}
+	var rts []*Task
+	self.running.Each(func(key string, t *Task) bool {
+		rts = append(rts, t)
+		return true
+	})
 
 	return rts
 }
@@ -252,19 +276,14 @@ func extraCpuMem(offer mesos.Offer) (int, int) {
 }
 
 func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos.Offer,
-	ts []*ReadyTask) (launchCount int) {
+	ts []*Task) (launchCount int) {
 	cpus, mem := extraCpuMem(offer)
 	tasks := make([]mesos.TaskInfo, 0)
 	for i := 0; i < len(ts) && cpus > 0 && mem > 512; i++ {
 		t := ts[i]
 		self.taskId++
-		log.Debugf("Launching task: %d, name:%s\n", self.taskId, t.Name)
-		job, err := scheduler.GetJobByName(t.Name)
-		if err != nil {
-			log.Error(err)
-			driver.DeclineOffer(offer.Id)
-			return
-		}
+		log.Debugf("Launching task: %d, name:%s\n", self.taskId, t.Id)
+		job := t.job
 
 		self.executor.Command.Value = proto.String(job.Executor + ` "` + job.ExecutorFlags + `"`)
 		self.executor.ExecutorId = &mesos.ExecutorID{Value: proto.String("tyrantExecutorId_" + strconv.Itoa(self.taskId))}
@@ -280,7 +299,7 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		task := mesos.TaskInfo{
 			Name: proto.String("go-task"),
 			TaskId: &mesos.TaskID{
-				Value: proto.String(genTaskId(t.td.DagName, t.Name)),
+				Value: proto.String(genTaskId(strconv.Itoa(int(job.Id)), t.Id)),
 			},
 			SlaveId:  offer.SlaveId,
 			Executor: self.executor,
@@ -291,9 +310,9 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		}
 
 		tasks = append(tasks, task)
+		t.state = taskRuning
 
-		self.s.SetTaskDagStateRunning(t.td.DagName)
-		t.td.LastUpdate = time.Now()
+		t.LastUpdate = time.Now()
 	}
 
 	if len(tasks) == 0 {
@@ -316,18 +335,6 @@ func (self *ResMan) OnResourceOffers(driver *mesos.SchedulerDriver, offers []mes
 
 	self.cmdCh <- cmd
 	<-cmd.wait
-}
-
-func (self *ResMan) removeTask(ti *TyrantTaskId) {
-	td := self.s.GetTaskDag(ti.DagName)
-	td.RemoveTask(ti.TaskName)
-	self.s.SetTaskDagStateReady(ti.DagName)
-
-	if td.Dag.Empty() {
-		log.Debugf("task in dag %s is empty, remove it", td.DagName)
-		self.s.RemoveTaskDag(td.DagName)
-		return
-	}
 }
 
 func (self *ResMan) OnStatusUpdate(driver *mesos.SchedulerDriver, status mesos.TaskStatus) {
@@ -402,4 +409,3 @@ func (self *ResMan) Run() {
 	<-self.exit
 	driver.Stop(false)
 }
-*/

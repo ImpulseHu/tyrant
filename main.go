@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/ngaut/tyrant/scheduler"
+	"github.com/ngaut/tyrant/scheduler/resourceScheduler"
 	//"github.com/ngaut/tyrant/scheduler/resourceScheduler"
 )
 
@@ -11,10 +12,10 @@ func init() {
 }
 
 func main() {
-	//resScheduler := resourceScheduler.NewResMan()
-	//go func() {
-	//	resScheduler.Run()
-	//}()
+	resScheduler := resourceScheduler.NewResMan()
+	go func() {
+		resScheduler.Run()
+	}()
 	s := scheduler.NewServer(":9090")
 	s.Serve()
 }
