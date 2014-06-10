@@ -112,16 +112,19 @@ var app = app || {};
 		el: '#tyrantapp',
 
 		events: {
-			"click .job-page" : "jobPage",
-			"click .status-page" : "statusPage"
 		},
 
 		initialize: function () {
 			this.listenTo(app.jobs, 'add', this.addOne);
 		},
 
-		render: function () {
-			this.jobPage();
+		render: function (page) {
+			if (page == 'job') {
+				this.jobPage();
+			}
+			else if (page == 'status') {
+				this.statusPage();
+			}
 		},
 
 		jobPage : function () {

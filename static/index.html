@@ -7,7 +7,14 @@
 	<title>Tyrant</title>
 	<style>
 		.container {
-			width: 1500px;
+			width: 90%;
+		}
+		h4 {
+			padding-left: 18px;
+			padding-bottom: 10px;
+		}	
+		hr {
+			margin-bottom: 0px;
 		}
 	</style>
 </head>
@@ -21,13 +28,52 @@
 	<script type="text/template" id="status-view-template">
 		<div class="header">
 			<ul class="nav nav-pills pull-right">
-				<li><a href="#" class="job-page">Jobs</a></li>
-				<li class="active"><a href="#" class="status-page">Status</a></li>
+				<li><a href="#job">Jobs</a></li>
+				<li class="active"><a href="#status">Status</a></li>
 			</ul>
 			<h3 class="text-muted">Tyrant</h3>
+			<hr/>
 		</div>
 		<div class="row">
 			<br/>
+			<h4>Running Jobs</h4>
+			<div class="col-md-12">
+				<table class="table table-hover">
+			      <thead>
+			        <tr>
+			          <th>#</th>
+			          <th>Job Name</th>
+			          <th>Executor</th>
+			          <th>Status</th>
+			          <th>Output</th>
+			        </tr>
+			      </thead>
+			      <tbody>
+			        <tr>
+			          <td>1</td>
+			          <td>Mark</td>
+			          <td>Otto</td>
+			          <td><span class="label label-warning">Warning</span></td>
+			          <td><a href="#">STDOUT</a> | <a href="#">STDERR</a> </td>
+			        </tr>
+			        <tr>
+			          <td>2</td>
+			          <td>Jacob</td>
+			          <td>Thornton</td>
+			          <td><span class="label label-success">Success</span> </td>
+			          <td><a href="#">STDOUT</a> | <a href="#">STDERR</a> </td>
+			        </tr>
+			        <tr>
+			          <td>3</td>
+			          <td>Jacob</td>
+			          <td>Thornton</td>
+			          <td><span class="label label-success">Success</span> </td>
+			          <td><a href="#">STDOUT</a> | <a href="#">STDERR</a> </td>
+			        </tr>
+			      </tbody>
+			    </table>
+			</div>
+			<h4>History</h4>
 			<div class="col-md-12">
 				<table class="table table-hover">
 			      <thead>
@@ -71,10 +117,11 @@
 	<script type="text/template" id="job-view-template">
 		<div class="header">
 			<ul class="nav nav-pills pull-right">
-				<li class="active"><a href="#" class="job-page">Jobs</a></li>
-				<li><a href="#" class="status-page">Status</a></li>
+				<li class="active"><a href="#job">Jobs</a></li>
+				<li><a href="#status">Status</a></li>
 			</ul>
 			<h3 class="text-muted">Tyrant</h3>
+			<hr/>
 		</div>
 		<div class="row">
 			<br/>
@@ -174,10 +221,10 @@
 
 	<script src="js/models/job.js"></script>
 	<script src="js/collections/jobs.js"></script>
-	<script src="js/routers/router.js"></script>
-
 	<script src="js/views/app-view.js"></script>
 	<script src="js/app.js"></script>
+	<script src="js/routers/router.js"></script>
+
 </body>
 
 </html>
