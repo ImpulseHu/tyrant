@@ -1,9 +1,6 @@
 package scheduler
 
-import (
-	log "github.com/ngaut/logging"
-	"strconv"
-)
+import log "github.com/ngaut/logging"
 
 type Task struct {
 	Id       int64  `db:"auto_incr_id" json:"auto_incr_id"`
@@ -32,13 +29,8 @@ func GetTaskList() []Task {
 }
 
 func GetTaskByTaskId(id string) (*Task, error) {
-	nid, err := strconv.Atoi(id)
-	if err != nil {
-		log.Debug(err.Error())
-		return nil, err
-	}
 	var task Task
-	err = sharedDbMap.SelectOne(&task, "select * from tasks where id=?", nid)
+	err := sharedDbMap.SelectOne(&task, "select * from tasks where id=?", id)
 	if err != nil {
 		log.Debug(err.Error())
 		return nil, err

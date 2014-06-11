@@ -1,6 +1,11 @@
 package mesosrel
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+
+	"mesos.apache.org/mesos"
+)
 
 type cmdRunTask struct {
 	Id string
@@ -10,6 +15,13 @@ type cmdRunTask struct {
 type cmdGetTaskStatus struct {
 	taskId string
 	ch     chan *pair
+}
+
+//frame registered or reregistered
+type cmdMesosMasterInfoUpdate struct {
+	masterInfo  mesos.MasterInfo
+	frameworkId mesos.FrameworkID
+	ch          chan struct{}
 }
 
 func splitTrim(s string) []string {
@@ -22,6 +34,10 @@ func splitTrim(s string) []string {
 	}
 
 	return ss
+}
+
+func Inet_itoa(a uint32) string {
+	return fmt.Sprintf("%d.%d.%d.%d", byte(a), byte(a>>8), byte(a>>16), byte(a>>24))
 }
 
 type pair struct {

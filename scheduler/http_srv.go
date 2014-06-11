@@ -135,19 +135,7 @@ func jobRun(ctx *web.Context, id string) string {
 			log.Debug(err.Error())
 			return responseError(ctx, -2, err.Error())
 		}
-		task := &Task{
-			TaskId:   taskId,
-			JobName:  j.Name,
-			Status:   STATUS_READY,
-			StartTs:  time.Now().Unix(),
-			UpdateTs: time.Now().Unix(),
-		}
-		err = task.Save()
-		log.Debug(task)
-		if err != nil {
-			log.Debug(err.Error())
-			return responseError(ctx, -3, err.Error())
-		}
+
 		return responseSuccess(ctx, taskId)
 	}
 	log.Debug("Notifier not found")

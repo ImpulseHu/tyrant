@@ -14,13 +14,15 @@ import (
 )
 
 type ResMan struct {
-	executor   *mesos.ExecutorInfo
-	exit       chan bool
-	taskId     int
-	timeoutSec int
-	cmdCh      chan interface{}
-	running    *TaskQueue
-	ready      *TaskQueue
+	executor    *mesos.ExecutorInfo
+	exit        chan bool
+	taskId      int
+	timeoutSec  int
+	cmdCh       chan interface{}
+	running     *TaskQueue
+	ready       *TaskQueue
+	masterInfo  mesos.MasterInfo
+	frameworkId string
 }
 
 type mesosDriver struct {
@@ -64,33 +66,42 @@ func (self *ResMan) OnStartReady(jid string) (string, error) {
 	return "", res.a1.(error)
 }
 
-func (self *ResMan) addReadyTask(id string) error {
+func (self *ResMan) addReadyTask(id string) (string, error) {
 	if self.ready.Exist(id) {
-		return fmt.Errorf("%s already exist: %+v", id, self.ready.Get(id))
+		return "", fmt.Errorf("%s already exist: %+v", id, self.ready.Get(id))
 	}
 
 	job, err := scheduler.GetJobById(id)
 	if err != nil {
-		return err
+		return "", err
 	}
-	t := &Task{Id: id, job: job, state: taskReady}
-	self.ready.Add(id, t)
+
+	persistentTask := &scheduler.Task{TaskId: self.genTaskId(), Status: scheduler.STATUS_READY}
+	log.Warningf("%+v", persistentTask)
+	err = persistentTask.Save()
+	if err != nil {
+		log.Error(err)
+		return "", err
+	}
+
+	t := &Task{Tid: persistentTask.TaskId, job: job, state: taskReady}
+	self.ready.Add(t.Tid, t)
 	log.Debugf("ready task %+v, total count:%d", t, self.ready.Length())
 
-	return nil
+	return persistentTask.TaskId, nil
 }
 
 func (self *ResMan) handleAddRunTask(t *cmdRunTask) {
-	err := self.addReadyTask(t.Id)
+	tid, err := self.addReadyTask(t.Id)
 	if err != nil {
 		log.Warning(err)
 		t.ch <- &pair{a1: err}
 		return
 	}
 
-	log.Debug("add task, taskId:", t.Id)
+	log.Debug("add task, taskId:", tid)
 
-	t.ch <- &pair{a0: t.Id, a1: err}
+	t.ch <- &pair{a0: tid, a1: err}
 }
 
 func (self *ResMan) GetStatusByTaskId(taskId string) (string, error) {
@@ -136,7 +147,7 @@ func (self *ResMan) handleMesosOffers(t *cmdMesosOffers) {
 	//remove from ready queue
 	for i := 0; i < idx; i++ {
 		log.Debugf("remove %+v from ready queue", ts[i])
-		self.ready.Del(ts[i].Id)
+		self.ready.Del(ts[i].Tid)
 	}
 
 	//decline left offers
@@ -169,6 +180,13 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	}
 	j.LastUpdate = time.Now()
 
+	persistentTask, err := scheduler.GetTaskByTaskId(id)
+	if err != nil {
+		log.Error(err)
+	}
+
+	log.Debugf("%+v", persistentTask)
+
 	//todo: update in storage
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED:
@@ -188,6 +206,14 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	default:
 		panic("should never happend")
 	}
+
+	if persistentTask != nil {
+		persistentTask.Status = (*status.State).String()
+		persistentTask.Message = status.GetMessage()
+		persistentTask.Url = "http://localhost:5050" //todo
+		persistentTask.UpdateTs = time.Now().Unix()
+		persistentTask.Save()
+	}
 }
 
 func (self *ResMan) OnRunJob(id string) (string, error) {
@@ -202,7 +228,7 @@ func (self *ResMan) OnRunJob(id string) (string, error) {
 	return "", res.a1.(error)
 }
 
-func (self *ResMan) handleCmd(cmd interface{}) {
+func (self *ResMan) dispatch(cmd interface{}) {
 	switch cmd.(type) {
 	case *cmdRunTask:
 		t := cmd.(*cmdRunTask)
@@ -225,6 +251,12 @@ func (self *ResMan) handleCmd(cmd interface{}) {
 		}
 		a0, a1 := t.Status()
 		ts.ch <- &pair{a0: a0, a1: a1}
+	case *cmdMesosMasterInfoUpdate:
+		info := cmd.(*cmdMesosMasterInfoUpdate)
+		self.masterInfo = info.masterInfo
+		if len(*info.frameworkId.Value) > 0 {
+			self.frameworkId = *info.frameworkId.Value
+		}
 	}
 }
 
@@ -249,7 +281,7 @@ func (self *ResMan) EventLoop() {
 	for {
 		select {
 		case cmd := <-self.cmdCh:
-			self.handleCmd(cmd)
+			self.dispatch(cmd)
 		case <-tick.C:
 			self.TimeoutCheck(self.timeoutSec)
 		}
@@ -286,18 +318,26 @@ func extraCpuMem(offer mesos.Offer) (int, int) {
 	return cpus, mem
 }
 
+func (self *ResMan) genExtorId(taskId string) string {
+	return taskId
+}
+
+func (self *ResMan) genTaskId() string {
+	self.taskId++
+	return strconv.Itoa(int(time.Now().Unix())) + "_" + strconv.Itoa(self.taskId)
+}
+
 func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos.Offer,
 	ts []*Task) (launchCount int) {
 	cpus, mem := extraCpuMem(offer)
 	tasks := make([]mesos.TaskInfo, 0)
 	for i := 0; i < len(ts) && cpus > 0 && mem > 512; i++ {
 		t := ts[i]
-		self.taskId++
-		log.Debugf("Launching task: %d, name:%s\n", self.taskId, t.Id)
+		log.Debugf("Launching task: %d, name:%s\n", self.taskId, t.Tid)
 		job := t.job
 
 		self.executor.Command.Value = proto.String(job.Executor + ` "` + job.ExecutorFlags + `"`)
-		self.executor.ExecutorId = &mesos.ExecutorID{Value: proto.String("tyrantExecutorId_" + strconv.Itoa(self.taskId))}
+		self.executor.ExecutorId = &mesos.ExecutorID{Value: proto.String(self.genExtorId(t.Tid))}
 		log.Debug(*self.executor.Command.Value)
 
 		urls := splitTrim(job.Uris)
@@ -310,7 +350,7 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		task := mesos.TaskInfo{
 			Name: proto.String("go-task"),
 			TaskId: &mesos.TaskID{
-				Value: proto.String(t.Id),
+				Value: proto.String(t.Tid),
 			},
 			SlaveId:  offer.SlaveId,
 			Executor: self.executor,
@@ -324,7 +364,7 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		t.state = taskRuning
 
 		t.LastUpdate = time.Now()
-		self.running.Add(t.Id, t)
+		self.running.Add(t.Tid, t)
 	}
 
 	if len(tasks) == 0 {
@@ -382,9 +422,15 @@ func (self *ResMan) OnDisconnected(driver *mesos.SchedulerDriver) {
 }
 
 func (self *ResMan) OnRegister(driver *mesos.SchedulerDriver, fid mesos.FrameworkID, mi mesos.MasterInfo) {
+	log.Warningf("OnRegisterd master:%v:%v, frameworkId:%v", Inet_itoa(mi.GetIp()), mi.GetPort(), fid.GetValue())
+	cmd := &cmdMesosMasterInfoUpdate{masterInfo: mi, frameworkId: fid}
+	self.cmdCh <- cmd
 }
 
 func (self *ResMan) OnReregister(driver *mesos.SchedulerDriver, mi mesos.MasterInfo) {
+	log.Warningf("OnReregisterd master:%v:%v", Inet_itoa(mi.GetIp()), mi.GetPort())
+	cmd := &cmdMesosMasterInfoUpdate{masterInfo: mi}
+	self.cmdCh <- cmd
 }
 
 func (self *ResMan) Run() {

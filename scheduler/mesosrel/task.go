@@ -20,7 +20,7 @@ var (
 )
 
 type Task struct {
-	Id          string
+	Tid         string
 	job         *scheduler.Job
 	state       int
 	Details     string
@@ -41,6 +41,6 @@ func (self *Task) Status() (string, string) {
 func (self *Task) String() string {
 	return fmt.Sprintf(
 		"Id:%s, job:%+v, state:%s, Details:%s, LastUpdate:%v",
-		self.Id, self.job, statusToStr(self.state), self.Details, self.LastUpdate,
+		self.Tid, self.job, statusToStr(self.state), self.Details, self.LastUpdate,
 	)
 }
