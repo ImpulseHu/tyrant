@@ -136,7 +136,7 @@ func jobRun(ctx *web.Context, id string) string {
 			return responseError(ctx, -2, err.Error())
 		}
 		task := &Task{
-			Id:       taskId,
+			TaskId:   taskId,
 			JobName:  j.Name,
 			Status:   STATUS_READY,
 			StartTs:  time.Now().Unix(),

@@ -6,14 +6,14 @@ import (
 )
 
 type Task struct {
-	TaskAutoId int64  `db:"auto_task_id"`
-	Id         string `db:"id" json:"id"`
-	JobName    string `db:"job_name" json:"job_name"`
-	Status     string `db:"status" json:"status"` /* `READY -> RUNNING -> (FINISH | FAILED)`*/
-	Message    string `db:"message" json:"message"`
-	Url        string `db:"url" json:"url"`
-	StartTs    int64  `db:"start_ts" json:"start_ts"`
-	UpdateTs   int64  `db:"update_ts" json:"update_ts"`
+	Id       int64  `db:"auto_incr_id" json:"auto_incr_id"`
+	TaskId   string `db:"id" json:"id"`
+	JobName  string `db:"job_name" json:"job_name"`
+	Status   string `db:"status" json:"status"` /* `READY -> RUNNING -> (FINISH | FAILED)`*/
+	Message  string `db:"message" json:"message"`
+	Url      string `db:"url" json:"url"`
+	StartTs  int64  `db:"start_ts" json:"start_ts"`
+	UpdateTs int64  `db:"update_ts" json:"update_ts"`
 }
 
 var STATUS_READY string = "READY"
@@ -31,7 +31,7 @@ func GetTaskList() []Task {
 	return tasks
 }
 
-func GetTaskById(id string) (*Task, error) {
+func GetTaskByTaskId(id string) (*Task, error) {
 	nid, err := strconv.Atoi(id)
 	if err != nil {
 		log.Debug(err.Error())
@@ -46,11 +46,11 @@ func GetTaskById(id string) (*Task, error) {
 	return &task, nil
 }
 
-func (j *Task) Save() error {
-	if j.TaskAutoId == 0 {
-		return sharedDbMap.Insert(j)
+func (t *Task) Save() error {
+	if t.Id == 0 {
+		return sharedDbMap.Insert(t)
 	} else {
-		_, err := sharedDbMap.Update(j)
+		_, err := sharedDbMap.Update(t)
 		return err
 	}
 }

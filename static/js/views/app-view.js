@@ -163,8 +163,7 @@ var app = app || {};
 		render: function (page) {
 			if (page == 'job') {
 				this.jobPage();
-			}
-			else if (page == 'status') {
+			} else if (page == 'status') {
 				this.statusPage();
 			}
 		},
