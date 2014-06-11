@@ -38,7 +38,7 @@ func NewDbMap() *gorp.DbMap {
 	tbl.ColMap("executor_flags").SetMaxSize(4096)
 	tbl.ColMap("uris").SetMaxSize(2048)
 
-	tbl = dbmap.AddTableWithName(Task{}, "tasks").SetKeys(true, "TaskAutoId")
+	tbl = dbmap.AddTableWithName(Task{}, "tasks").SetKeys(true, "Id")
 	tbl.ColMap("id").SetMaxSize(128).SetUnique(true)
 
 	err = dbmap.CreateTablesIfNotExists()
