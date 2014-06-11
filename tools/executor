@@ -1,0 +1,56 @@
+#!/usr/bin/env python
+import os
+import sys
+import requests
+import hashlib
+
+TYRANT_EXECUTOR_SRV_URL = "http://localhost:8976"
+
+def usage():
+    print 'Usage:'
+    print 'executor.py [list|upload|remove] ...'
+    print 'executor.py list'
+    print 'executor.py upload [executor-name] [executor-local-path (.tar.gz)]'
+    print 'executor.py remove [executor-name]'
+    exit(-1)
+
+def file_md5(fpath):
+    fp = open(fpath, 'rb')
+    content = fp.read()
+    fp.close()
+    return hashlib.md5(content).hexdigest()
+
+def do_list():
+    r = requests.get(TYRANT_EXECUTOR_SRV_URL + '/list')
+    out = r.json()
+    print '\n'.join([TYRANT_EXECUTOR_SRV_URL + o for o in out])
+
+def do_upload():
+    if len(sys.argv) < 4:
+        usage()
+    executor_name, executor_path = sys.argv[2], sys.argv[3]
+    files = {'file': open(executor_path, 'rb')}
+    with open(executor_path, 'rb') as f:
+        r = requests.post(TYRANT_EXECUTOR_SRV_URL + '/upload', files=files, data={'executor_name': executor_name})
+        md5 = r.text
+        if file_md5(executor_path) == md5:
+            print 'UPLOAD SUCCESS'
+        else:
+            print 'UPLOAD ERROR: ' + r.text
+
+def do_remove():
+    pass
+
+def main():
+    if len(sys.argv) < 2 or sys.argv[1] not in ['list', 'upload', 'remove']:
+        usage()
+
+    if sys.argv[1] == 'list':
+        do_list()
+    if sys.argv[1] == 'upload':
+        do_upload()
+    if sys.argv[1] == 'remove':
+        pass
+
+if __name__ == '__main__':
+    main()

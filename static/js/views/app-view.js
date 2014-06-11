@@ -118,9 +118,16 @@ var app = app || {};
 		},
 
 		onRunClick: function () {
-			$.post('/job/run/' + this.model.get('id'), function(e) {
-				alert(e);
-			})
+			$.ajax({
+				url: '/job/run/' + this.model.get('id'),
+				type : 'POST',
+				error: function(e) {
+					console.log(e);
+				},
+				success: function(result) {
+					alert("OK");
+				}
+			});
 		},
 
 		onRemoveClick: function () {
