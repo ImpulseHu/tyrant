@@ -2,9 +2,10 @@ package main
 
 import (
 	"github.com/ngaut/tyrant/scheduler"
-	"github.com/ngaut/tyrant/scheduler/resourceScheduler"
-	//"github.com/ngaut/tyrant/scheduler/resourceScheduler"
+	"github.com/ngaut/tyrant/scheduler/mesosrel"
 )
+
+//"github.com/ngaut/tyrant/scheduler/resourceScheduler"
 
 func init() {
 	scheduler.InitConfig("config.ini")
@@ -12,7 +13,7 @@ func init() {
 }
 
 func main() {
-	resScheduler := resourceScheduler.NewResMan()
+	resScheduler := mesosrel.NewResMan()
 	go func() {
 		resScheduler.Run()
 	}()

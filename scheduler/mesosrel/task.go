@@ -1,4 +1,4 @@
-package resourceScheduler
+package mesosrel
 
 import (
 	"fmt"
