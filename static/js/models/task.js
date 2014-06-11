@@ -5,12 +5,12 @@ var app = app || {};
 
 	app.Task = Backbone.Model.extend({
 		defaults: {
+			id : "",
 			job_id : "",
 			start_ts : "",
-			finish_ts : "",
+			update_ts : "",
 			status : "",
-			stdout : "",
-			stderr : "",
+			message : "",
 		},
 		urlRoot: '/task',
 	});

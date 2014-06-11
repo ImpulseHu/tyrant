@@ -135,14 +135,36 @@ func jobRun(ctx *web.Context, id string) string {
 			log.Debug(err.Error())
 			return responseError(ctx, -2, err.Error())
 		}
+		task := &Task{
+			Id:       taskId,
+			JobName:  j.Name,
+			Status:   STATUS_READY,
+			StartTs:  time.Now().Unix(),
+			UpdateTs: time.Now().Unix(),
+		}
+		err = task.Save()
+		log.Debug(task)
+		if err != nil {
+			log.Debug(err.Error())
+			return responseError(ctx, -3, err.Error())
+		}
 		return responseSuccess(ctx, taskId)
 	}
 	log.Debug("Notifier not found")
 	return responseError(ctx, -3, "notifier not found")
 }
 
+func taskList(ctx *web.Context) string {
+	tasks := GetTaskList()
+	if tasks != nil && len(tasks) > 0 {
+		return responseSuccess(ctx, tasks)
+	}
+	return responseSuccess(ctx, nil)
+}
+
 func (srv *Server) Serve() {
 	web.Get("/job/list", jobList)
+	web.Get("/task/list", taskList)
 	web.Get("/job/(.*)", jobGet)
 	web.Post("/job", jobNew)
 	web.Post("/job/run/(.*)", jobRun)

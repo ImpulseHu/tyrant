@@ -5,15 +5,22 @@ var app = app || {};
 	'use strict';
 	app.AppRouter = Backbone.Router.extend({
 	    routes: {
-	        "*Page" : "goPage",
+	        'job' : 'job',
+	        'status' : 'status',
+	        'executor' : 'executor',
+	        '*action' : 'defaultRoute'
 	    },
-	    goPage: function(id) {
-	    	if (id == null) id = 'job';
-		    app.appView.render(id);
+	    executor : function () {
+	    	app.appView.render('executor');
+	    },
+	    job : function () {
+	    	app.appView.render('job');
+	    },
+	    status: function () {
+	    	app.appView.render('status');
+	    },
+	    defaultRoute : function() {
+	    	app.appView.render('job');
 	    },
 	});
-
-	app.appView = new app.AppView();
-	app.router = new app.AppRouter;
-	Backbone.history.start();
 })();

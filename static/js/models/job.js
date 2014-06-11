@@ -10,6 +10,7 @@ var app = app || {};
 			last_status : "",
 			executor_flags : "",
 			uris : "",
+			create_ts : 0,
 			owner : "",
 		},
 		urlRoot: '/job',

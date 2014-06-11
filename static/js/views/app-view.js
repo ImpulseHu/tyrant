@@ -2,27 +2,61 @@ var app = app || {};
 (function ($) {
 	'use strict';
 
-	app.JobNewView = Backbone.View.extend({
-		template : _.template($("#job-new-template").html()),
+	app.HeaderView = Backbone.View.extend({
+		template : _.template($("#header-template").html()),
 
+		render: function() {
+          this.$el.html(this.template());
+          return this;
+        },
+
+        setActive: function(id) {
+			_.each(this.$el.find('li'), function(li) {
+				$(li).removeClass('active');
+			});
+			this.$el.find('.' + id).addClass('active');  	
+        }
+	});
+
+
+	app.JobEditView = Backbone.View.extend({
+		template : _.template($("#job-edit-template").html()),
+
+		render: function() {
+          this.$el.html(this.template(this.model.toJSON()));
+          return this;
+        },
+
+        getObject: function() {
+        	return {
+				name : this.$el.find(".name-input").val(),
+	    		executor : this.$el.find(".executor-input").val(),
+	    	    executor_flags : this.$el.find(".executor-flag-input").val(),
+				uris : this.$el.find('.uris-input').val(),
+	    	    owner : this.$el.find(".owner-input").val()
+			}
+        }
+	});
+
+
+	app.JobNewView = Backbone.View.extend({
+
+		tagName:  'div',
+			
 		events: {
-			'click .save-btn': 'onSaveClick',
+			'click .btn-save': 'onSaveClick',
 		},
 
 		initialize: function () {
+			this.$form = new app.JobEditView({model: this.model});
 		},
 
 		onSaveClick : function () {
 			var job = new app.Job();
-			job.save({
-				name: $('#name').val(),
-				executor: $('#executor').val(),
-				executor_flags : $('#executor-flag').val(),
-				uris : $('#uris').val(),
-				owner : $('#owner').val()
-			}, {
+			job.save(this.$form.getObject() , {
 				success : function(j, e) {
 					j.set('id', e.data.id);
+					j.set('create_ts', e.data.create_ts);
 					app.jobs.add(j);
 				},
 				error: function(j, e) {
@@ -32,36 +66,40 @@ var app = app || {};
 		},
 
 		render: function() {
-          this.$el.html(this.template());
+          this.$el.html(this.$form.render().el);
           return this;
         }
 	});
 
 	app.ModalContent = Backbone.View.extend({
 
-		template : _.template($("#edit-modal-template").html()),
-
 		initialize: function () {
+			this.$form = new app.JobEditView({model: this.model});
 	        this.bind("ok", this.onOkClicked);
 	    },
 
 	    onOkClicked: function (modal) {
 	    	this.model.save(
-	    	{
-	    		name : $(".name-input").val(),
-	    		executor : $(".executor-input").val(),
-	    	    executor_flags : $(".executor-flag-input").val(),
-				uris : $('.uris-input').val(),
-	    	    owner : $(".owner-input").val()
-	    	});
+	    		this.$form.getObject()
+	    	);
 	        //modal.preventClose();
 	    },
 
         render: function() {
-          this.$el.html(this.template(this.model.toJSON()));
+          this.$el.html(this.$form.render().el);
+          this.$el.find(".btn-save").hide();
           return this;
         }
     });
+
+	app.TaskView = Backbone.View.extend({
+		tagName:  'tr',
+		template: _.template($('#task-item-template').html()),
+		render: function () {
+			this.$el.html(this.template(this.model.toJSON()));
+			return this;
+		},
+	});
 
 	app.JobView = Backbone.View.extend({
 
@@ -115,7 +153,11 @@ var app = app || {};
 		},
 
 		initialize: function () {
-			this.listenTo(app.jobs, 'add', this.addOne);
+			this.listenTo(app.jobs, 'add', this.addOneJob);
+			this.listenTo(app.tasks, 'add', this.addOneTask);
+			this.header = new app.HeaderView();
+
+			app.router = new app.AppRouter();
 		},
 
 		render: function (page) {
@@ -129,12 +171,19 @@ var app = app || {};
 
 		jobPage : function () {
 			var list_tmpl = _.template($("#job-view-template").html());
-			var newJobView = new app.JobNewView();
-			this.$el.html(list_tmpl());
-			$('#new-job-form').html(newJobView.render().el);
-
+			var newJobView = new app.JobNewView({model : new app.Job});
+			// clear page
+			this.$el.html('');
+			// set header
+			this.$el.append(this.header.render().el);
+			// set job list
+			this.$el.append(list_tmpl());
  			this.$list = $('#job-list');
-
+			// set new job form
+			this.$el.find('#new-job-form').html(newJobView.render().el);
+			// set header active
+			this.header.setActive('job');
+			// load job list
  			app.jobs.fetch({success: function(d, e) {
 				_.each(e.data, function(o){ 
 					app.jobs.add(o); 
@@ -143,18 +192,27 @@ var app = app || {};
 		},
 
 		statusPage : function() {
-			var tmpl = _.template($("#status-view-template").html())
-			this.$el.html(tmpl());
+			var status_list_tmpl = _.template($("#status-view-template").html())
+			this.$el.html('');
+			this.$el.append(this.header.render().el);
+			this.$el.append(status_list_tmpl());
+			this.$list = $('.running');
+			this.header.setActive('status');
+			app.tasks.fetch({success: function(d, e) {
+				_.each(e.data, function(o){ 
+					app.tasks.add(o); 
+				});
+			}, reset: true});
 		},
 
-		addOne: function (job) {
+		addOneJob: function (job) {
 			var view = new app.JobView({ model: job });
 			this.$list.append(view.render().el);
 		},
 
-		addAll: function () {
-			this.$list.html('');
-			app.jobs.each(this.addOne, this);
-		}
+		addOneTask: function (task) {
+			var view = new app.TaskView({ model: task });
+			this.$list.append(view.render().el);
+		},
 	});
 })(jQuery);

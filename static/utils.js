@@ -14,20 +14,25 @@ $.fn.serializeObject = function() {
     return o;
 };
 
-function TimestampToDate(ts) {
-  // create a new javascript Date object based on the timestamp
-  // multiplied by 1000 so that the argument is in milliseconds, not seconds
-  var date = new Date(ts * 1000);
-  // hours part from the timestamp
-  var year =  date.getFullYear();
-  var mon = date.getMonth();
-  var day = date.getDay();
-  var hours = date.getHours();
-  // minutes part from the timestamp
-  var minutes = date.getMinutes();
-  // seconds part from the timestamp
-  var seconds = date.getSeconds();
-  // will display time in 10:30:23 format
-  return year + '-' + mon + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
-}
+Date.prototype.Format = function(fmt) { //author: meizz   
+  var o = {   
+    "M+" : this.getMonth()+1,                 //月份   
+    "d+" : this.getDate(),                    //日   
+    "h+" : this.getHours(),                   //小时   
+    "m+" : this.getMinutes(),                 //分   
+    "s+" : this.getSeconds(),                 //秒   
+    "q+" : Math.floor((this.getMonth()+3)/3), //季度   
+    "S"  : this.getMilliseconds()             //毫秒   
+  };   
+  if(/(y+)/.test(fmt))   
+    fmt=fmt.replace(RegExp.$1, (this.getFullYear()+"").substr(4 - RegExp.$1.length));   
+  for(var k in o)   
+    if(new RegExp("("+ k +")").test(fmt))   
+      fmt = fmt.replace(RegExp.$1, (RegExp.$1.length==1) ? (o[k]) : (("00"+ o[k]).substr((""+ o[k]).length)));   
+    return fmt;   
+  }  
 
+function TimestampToDate(ts) {
+  var date = new Date(ts * 1000);
+  return date.Format("yyyy-M-d h:m:s");
+}
