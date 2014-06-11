@@ -257,7 +257,6 @@ func (self *ResMan) EventLoop() {
 }
 
 func (self *ResMan) getReadyTasks() []*Task {
-	//todo:check if schedule time is match
 	var rts []*Task
 	self.ready.Each(func(key string, t *Task) bool {
 		log.Debugf("ready task:%+v", t)
@@ -382,6 +381,12 @@ func (self *ResMan) OnDisconnected(driver *mesos.SchedulerDriver) {
 	log.Warning("Disconnected")
 }
 
+func (self *ResMan) OnRegister(driver *mesos.SchedulerDriver, fid mesos.FrameworkID, mi mesos.MasterInfo) {
+}
+
+func (self *ResMan) OnReregister(driver *mesos.SchedulerDriver, mi mesos.MasterInfo) {
+}
+
 func (self *ResMan) Run() {
 	master := flag.String("master", "localhost:5050", "Location of leading Mesos master")
 	executorUri := flag.String("executor-uri", "", "URI of executor executable")
@@ -411,6 +416,8 @@ func (self *ResMan) Run() {
 			StatusUpdate:   self.OnStatusUpdate,
 			Error:          self.OnError,
 			Disconnected:   self.OnDisconnected,
+			Registered:     self.OnRegister,
+			Reregistered:   self.OnReregister,
 		},
 	}
 

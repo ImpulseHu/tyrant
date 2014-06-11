@@ -20,11 +20,14 @@ var (
 )
 
 type Task struct {
-	Id         string
-	job        *scheduler.Job
-	state      int
-	Details    string
-	LastUpdate time.Time
+	Id          string
+	job         *scheduler.Job
+	state       int
+	Details     string
+	FrameworkId string
+	SalveId     string
+	ExecutorId  string
+	LastUpdate  time.Time
 }
 
 func statusToStr(status int) string {
