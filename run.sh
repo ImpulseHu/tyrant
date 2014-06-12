@@ -1,1 +1,1 @@
-./tyrant --master=zk://localhost:2181/mesos
+./tyrant --master=zk://192.168.102.95:2181/mesos

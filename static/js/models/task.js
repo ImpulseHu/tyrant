@@ -11,6 +11,7 @@ var app = app || {};
 			update_ts : "",
 			status : "",
 			message : "",
+			url : "",
 		},
 		urlRoot: '/task',
 	});
