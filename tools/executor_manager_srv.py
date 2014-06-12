@@ -24,7 +24,10 @@ def get_new_revision(path):
     files = os.listdir(path)
     max_version = -1
     for fn in files:
-        name, _ = os.path.splitext(fn)
+        if not fn.endswith('.tar.gz'):
+            name, _ = os.path.splitext(fn)
+        else:
+            name = fn.split('.tar.gz')[0]
         if name.startswith('r_'):
             version = int(name.split('r_')[1])
             if version > max_version:
