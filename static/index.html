@@ -49,6 +49,7 @@
 			          <th>Start Time</th>
 			          <th>Status</th>
 			          <th>Output</th>
+			          <th>Executor Message</th>
 			        </tr>
 			      </thead>
 			    </table>
@@ -123,6 +124,12 @@
 
 		<% if (url) { %>
 			<td><a href="<%= url %>" target="_blank"> OUTPUT </td>
+		<% }  else  { %>
+			<td></td>
+		<% } %>
+
+		<% if (message) { %>
+			<td><pre><%= message %></pre></td>
 		<% }  else  { %>
 			<td></td>
 		<% } %>
