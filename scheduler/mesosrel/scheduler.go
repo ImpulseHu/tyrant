@@ -169,7 +169,6 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	}()
 
 	pwd := string(status.Data)
-	log.Error(pwd)
 	taskId := *status.TaskId
 	id := *taskId.Value
 	log.Debugf("Received task %+v status: %+v", id, status)
