@@ -17,6 +17,9 @@ func main() {
 	go func() {
 		resScheduler.Run()
 	}()
+	go func() {
+		scheduler.CheckAutoRunJobs(resScheduler)
+	}()
 	s := scheduler.NewServer(":9090", resScheduler)
 	s.Serve()
 }

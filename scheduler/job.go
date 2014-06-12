@@ -1,9 +1,10 @@
 package scheduler
 
 import (
-	"strconv"
-
+	"github.com/gorhill/cronexpr"
 	log "github.com/ngaut/logging"
+	"strconv"
+	"time"
 )
 
 // Job define
@@ -27,7 +28,8 @@ type Job struct {
 	Mem           int    `db:"mem" json:"mem"`
 	Disk          int64  `db:"disk" json:"disk"`
 	Disabled      bool   `db:"disabled" json:"disabled"`
-	Uris          string `db:"uris" json:"uris"` // 2048
+	Uris          string `db:"uris" json:"uris"`         // 2048
+	Schedule      string `db:"schedule" json:"schedule"` // 2048
 }
 
 func GetJobList() []Job {
@@ -53,6 +55,30 @@ func JobExists(id string) bool {
 	return true
 }
 
+func GetScheduledJobList() []Job {
+	var jobs []Job
+	_, err := sharedDbMap.Select(&jobs, "select * from jobs where schedule <> ''")
+	if err != nil {
+		log.Debug(err.Error())
+		return nil
+	}
+	return jobs
+}
+
+func CheckAutoRunJobs(n Notifier) {
+	for {
+		log.Debug("start check auto run job...")
+		jobs := GetScheduledJobList()
+		for _, j := range jobs {
+			if j.NeedAutoStart() {
+				log.Debug("Auto Run Job Found: ", j)
+				n.OnRunJob(strconv.FormatInt(j.Id, 10))
+			}
+		}
+		time.Sleep(10 * time.Second)
+	}
+}
+
 func GetJobById(id string) (*Job, error) {
 	nid, err := strconv.Atoi(id)
 	if err != nil {
@@ -70,6 +96,35 @@ func (j *Job) Disable(b bool) error {
 	j.Disabled = b
 	_, err := sharedDbMap.Update(j)
 	return err
+}
+
+func (j *Job) GetLastRunTime() int64 {
+	if len(j.LastTaskId) == 0 {
+		return 0
+	}
+	task, _ := GetTaskByTaskId(j.LastTaskId)
+	if task != nil {
+		return task.StartTs
+	}
+	return 0
+}
+
+// goroutine run this function periodly to check if this job is needed to auto start
+func (j Job) NeedAutoStart() bool {
+	if len(j.Schedule) > 0 {
+		expr := cronexpr.MustParse(j.Schedule)
+		last_run_ts := j.GetLastRunTime()
+		if last_run_ts >= 0 {
+			last_run_time := time.Unix(last_run_ts, 0)
+			next_time := expr.Next(last_run_time)
+			log.Debug("next_time", next_time)
+			// > 20s
+			if time.Now().Unix()-next_time.Unix() > 20 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (j *Job) Save() error {

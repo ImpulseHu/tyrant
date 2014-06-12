@@ -33,6 +33,7 @@ var app = app || {};
 	    		executor : this.$el.find(".executor-input").val(),
 	    	    executor_flags : this.$el.find(".executor-flag-input").val(),
 				uris : this.$el.find('.uris-input').val(),
+				schedule : this.$el.find('.schedule-input').val(),
 	    	    owner : this.$el.find(".owner-input").val()
 			}
         }
