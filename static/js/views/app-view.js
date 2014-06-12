@@ -205,8 +205,11 @@ var app = app || {};
 			this.$list = $('.running');
 			this.header.setActive('status');
 			app.tasks.fetch({success: function(d, e) {
-				_.each(e.data, function(o){ 
-					app.tasks.add(o); 
+				var data = _.sortBy(e.data, function(o) {
+					return -o.start_ts;
+				})
+				_.each(data, function(o){ 
+					app.tasks.add(o);
 				});
 			}, reset: true});
 		},
