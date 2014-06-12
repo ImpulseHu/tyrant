@@ -56,13 +56,14 @@ class ExecutorUploadHandler(tornado.web.RequestHandler):
                 os.makedirs(basepath)
 
             for f in self.request.files['file']:
-                rawname = 'latest'
+                ext_name = os.path.splitext(f['file'])[1]
+                rawname = 'latest' + ext_name
                 dstname = os.path.join(basepath, rawname)
                 fp = open(dstname, 'wb')
                 fp.write(f['body'])
                 fp.close()
                 version = get_new_revision(basepath)
-                shutil.copyfile(dstname, os.path.join(basepath, 'r_' + str(version)))
+                shutil.copyfile(dstname, os.path.join(basepath, 'r_' + str(version) + ext_name))
                 self.write(file_md5(dstname))
                 return
         self.write("invalid post")

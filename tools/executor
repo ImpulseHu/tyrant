@@ -4,14 +4,14 @@ import sys
 import requests
 import hashlib
 
-TYRANT_EXECUTOR_SRV_URL = "http://localhost:8976"
+TYRANT_EXECUTOR_SRV_URL = "http://" + sys.argv[1]
 
 def usage():
     print 'Usage:'
-    print 'executor.py [list|upload|remove] ...'
-    print 'executor.py list'
-    print 'executor.py upload [executor-name] [executor-local-path (.tar.gz)]'
-    print 'executor.py remove [executor-name]'
+    print 'executor.py [server-host:server-port] [list|upload|remove] ...'
+    print 'executor.py test.server:9876 list'
+    print 'executor.py test.server:9876 upload [executor-name] [executor-local-path (.tar.gz)]'
+    print 'executor.py test.server:9876 remove [executor-name]'
     exit(-1)
 
 def file_md5(fpath):
@@ -28,7 +28,7 @@ def do_list():
 def do_upload():
     if len(sys.argv) < 4:
         usage()
-    executor_name, executor_path = sys.argv[2], sys.argv[3]
+    executor_name, executor_path = sys.argv[3], sys.argv[4]
     files = {'file': open(executor_path, 'rb')}
     with open(executor_path, 'rb') as f:
         r = requests.post(TYRANT_EXECUTOR_SRV_URL + '/upload', files=files, data={'executor_name': executor_name})
@@ -42,14 +42,14 @@ def do_remove():
     pass
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ['list', 'upload', 'remove']:
+    if len(sys.argv) < 3 or sys.argv[2] not in ['list', 'upload', 'remove']:
         usage()
 
-    if sys.argv[1] == 'list':
+    if sys.argv[2] == 'list':
         do_list()
-    if sys.argv[1] == 'upload':
+    if sys.argv[2] == 'upload':
         do_upload()
-    if sys.argv[1] == 'remove':
+    if sys.argv[2] == 'remove':
         pass
 
 if __name__ == '__main__':
