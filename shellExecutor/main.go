@@ -53,6 +53,8 @@ func (self *ShellExecutor) EventLoop() {
 			self.lock.Lock()
 			delete(self.process, taskId) //thread safe
 			self.lock.Unlock()
+			tick.Stop()
+			return
 		case <-tick.C:
 			self.lock.Lock()
 			self.sendHeartbeat()
@@ -101,6 +103,14 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 		go func() {
 			defer func() {
 				self.finish <- taskInfo.TaskId.GetValue()
+				log.Debug("send finish state")
+
+				driver.SendStatusUpdate(&mesos.TaskStatus{
+					TaskId:  taskInfo.TaskId,
+					State:   mesos.NewTaskState(mesos.TaskState_TASK_FINISHED),
+					Message: proto.String("Go task is done!"),
+					Data:    []byte(self.pwd),
+				})
 			}()
 
 			self.lock.Lock()
@@ -115,14 +125,6 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 				fmt.Println(string(out))
 				//	log.Debug(string(out))
 			}
-			log.Debug("send finish state")
-
-			driver.SendStatusUpdate(&mesos.TaskStatus{
-				TaskId:  taskInfo.TaskId,
-				State:   mesos.NewTaskState(mesos.TaskState_TASK_FINISHED),
-				Message: proto.String("Go task is done!"),
-				Data:    []byte(self.pwd),
-			})
 		}()
 	} else {
 		log.Debug("send finish state")
@@ -142,7 +144,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	se := &ShellExecutor{pwd: pwd, finish: make(chan string, 1),
+	se := &ShellExecutor{pwd: pwd, finish: make(chan string),
 		process: make(map[string]*exec.Cmd)}
 	driver := mesos.ExecutorDriver{
 		Executor: &mesos.Executor{
