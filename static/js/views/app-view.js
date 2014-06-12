@@ -125,7 +125,7 @@ var app = app || {};
 					console.log(e);
 				},
 				success: function(result) {
-					alert("OK");
+					alert("OK" + " " + result);
 				}
 			});
 		},

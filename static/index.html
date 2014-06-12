@@ -71,7 +71,7 @@
 								<th>Owner</th>
 								<th>Create At</th>
 								<th>Last Status</th>
-								<th>Last Update</th>
+								<th>Last Success Time</th>
 								<th></th>
 							</tr>
 						</thead>
@@ -89,9 +89,19 @@
 		<td><%= executor %></td>
 		<td><%= owner %></td>
 		<td><%= TimestampToDate(create_ts) %></td>
-		<td><span class="label label-success">Success</span></td>
+		<% if (status == "TASK_FINISHED" || status== "TASK_RUNNING") { %>
+			<td><span class="label label-success"><%= last_status %></span> </td>
+		<% } else if (status == "READY") { %>
+			<td><span class="label label-primary"><%= last_status %></span> </td>
+		<% }  else  { %>
+			<td><span class="label label-danger"><%= last_status %></span> </td>
+		<% } %>
 
-		<td></td>
+		<% if (last_success_ts > 0) { %>
+		<td><%= TimestampToDate(last_success_ts) %></td>
+		<% } else { %>
+			<td> NEVER </td>
+		<% } %>
 		<td>
 			<a href="javascript:void(0)" class="force-run-btn">Force Run</a> | 
 			<a href="javascript:void(0)" class="edit-btn">Edit</a> | 
@@ -103,14 +113,19 @@
 		<td> <%= id %></td>
 		<td> <%= job_name %> </td>
 		<td> <%= TimestampToDate(start_ts) %> </td>
-		<% if (status == "TASK_FINISHED") { %>
+		<% if (status == "TASK_FINISHED" || status== "TASK_RUNNING") { %>
 			<td><span class="label label-success"><%= status %></span> </td>
 		<% } else if (status == "READY") { %>
 			<td><span class="label label-primary"><%= status %></span> </td>
 		<% }  else  { %>
 			<td><span class="label label-danger"><%= status %></span> </td>
 		<% } %>
-		<td><a href="<%= url %>" target="_blank"> OUTPUT </td>
+
+		<% if (url) { %>
+			<td><a href="<%= url %>" target="_blank"> OUTPUT </td>
+		<% }  else  { %>
+			<td></td>
+		<% } %>
 	</script>
 
 	

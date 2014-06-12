@@ -8,6 +8,7 @@ var app = app || {};
 			name : "",
 			executor : "",
 			last_status : "",
+			last_success_ts : 0,
 			executor_flags : "",
 			uris : "",
 			create_ts : 0,
