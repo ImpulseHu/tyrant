@@ -167,18 +167,21 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		t.wait <- struct{}{}
 	}()
 
+	pwd := string(status.Data)
+	log.Error(pwd)
 	taskId := *status.TaskId
 	id := *taskId.Value
 	log.Debugf("Received task %+v status: %+v", id, status)
-	j := self.running.Get(id)
-	if j == nil {
+	tk := self.running.Get(id)
+	if tk == nil {
 		return
 	}
 
-	if status.Message != nil {
-		j.Details = status.GetMessage()
+	if len(pwd) > 0 && len(tk.Pwd) == 0 {
+		tk.Pwd = pwd
 	}
-	j.LastUpdate = time.Now()
+
+	tk.LastUpdate = time.Now()
 
 	persistentTask, err := scheduler.GetTaskByTaskId(id)
 	if err != nil {
@@ -208,11 +211,17 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	}
 
 	if persistentTask != nil {
+		//tk.SalveId = status.GetSlaveId().GetValue()
+		// "http: //localhost:5050/#/slaves/20140609-112613-16842879-5050-5832-0/browse?path=%2Ftmp%2Fmesos%2Fslaves%2F20140609-112613-16842879-5050-5832-0%2Fframeworks%2F20140609-112613-16842879-5050-5832-0033%2Fexecutors%2FtyrantExecutorId_2%2Fruns%2F60a6e6b2-5d65-4408-b048-e7dc6d3b12d2"
+		//master/save/executor/offerid
+		url := fmt.Sprintf("http://%v:%v/#/slaves/%s/browse?path=%s",
+			Inet_itoa(self.masterInfo.GetIp()), self.masterInfo.GetPort(), tk.SalveId, tk.Pwd)
 		persistentTask.Status = (*status.State).String()
 		persistentTask.Message = status.GetMessage()
-		persistentTask.Url = "http://localhost:5050" //todo
+		persistentTask.Url = url
 		persistentTask.UpdateTs = time.Now().Unix()
 		persistentTask.Save()
+		log.Debug(url)
 	}
 }
 
@@ -242,15 +251,6 @@ func (self *ResMan) dispatch(cmd interface{}) {
 	case *cmdMesosStatusUpdate:
 		t := cmd.(*cmdMesosStatusUpdate)
 		self.handleMesosStatusUpdate(t)
-	case *cmdGetTaskStatus:
-		ts := cmd.(*cmdGetTaskStatus)
-		t := self.running.Get(ts.taskId)
-		if t != nil {
-			ts.ch <- &pair{a1: fmt.Errorf("%s not exist", ts.taskId)}
-			return
-		}
-		a0, a1 := t.Status()
-		ts.ch <- &pair{a0: a0, a1: a1}
 	case *cmdMesosMasterInfoUpdate:
 		info := cmd.(*cmdMesosMasterInfoUpdate)
 		self.masterInfo = info.masterInfo
@@ -337,7 +337,8 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		job := t.job
 
 		self.executor.Command.Value = proto.String(job.Executor + ` "` + job.ExecutorFlags + `"`)
-		self.executor.ExecutorId = &mesos.ExecutorID{Value: proto.String(self.genExtorId(t.Tid))}
+		executorId := self.genExtorId(t.Tid)
+		self.executor.ExecutorId = &mesos.ExecutorID{Value: proto.String(executorId)}
 		log.Debug(*self.executor.Command.Value)
 
 		urls := splitTrim(job.Uris)
@@ -364,6 +365,10 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		t.state = taskRuning
 
 		t.LastUpdate = time.Now()
+		t.SalveId = offer.GetSlaveId().GetValue()
+		t.OfferId = offer.GetId().GetValue()
+		log.Warning(t.OfferId)
+		t.ExecutorId = executorId
 		self.running.Add(t.Tid, t)
 	}
 
