@@ -76,7 +76,8 @@ func (self *ResMan) addReadyTask(id string) (string, error) {
 		return "", err
 	}
 
-	persistentTask := &scheduler.Task{TaskId: self.genTaskId(), Status: scheduler.STATUS_READY}
+	persistentTask := &scheduler.Task{TaskId: self.genTaskId(), Status: scheduler.STATUS_READY,
+		StartTs: time.Now().Unix(), JobName: job.Name}
 	log.Warningf("%+v", persistentTask)
 	err = persistentTask.Save()
 	if err != nil {
@@ -190,8 +191,6 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 
 	log.Debugf("%+v", persistentTask)
 
-	var startTs time.Time
-
 	//todo: update in storage
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED:
@@ -206,7 +205,6 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		//todo: update something
 	case mesos.TaskState_TASK_STARTING:
 		//todo:update something
-		startTs = time.Now()
 	case mesos.TaskState_TASK_RUNNING:
 		//todo:update something
 	default:
@@ -219,10 +217,6 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		persistentTask.Status = (*status.State).String()
 		persistentTask.Message = status.GetMessage()
 		persistentTask.Url = url
-		if persistentTask.StartTs == 0 {
-			persistentTask.StartTs = startTs.Unix()
-		}
-		persistentTask.JobName = tk.job.Name
 		persistentTask.UpdateTs = time.Now().Unix()
 		persistentTask.Save()
 		log.Debug(url)
