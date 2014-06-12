@@ -169,7 +169,6 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	}()
 
 	pwd := string(status.Data)
-	log.Error(pwd)
 	taskId := *status.TaskId
 	id := *taskId.Value
 	log.Debugf("Received task %+v status: %+v", id, status)
@@ -194,8 +193,10 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	//todo: update in storage
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED:
+		tk.job.LastSuccessTs = time.Now().Unix()
 		self.removeRunningTask(id)
 	case mesos.TaskState_TASK_FAILED:
+		tk.job.LastErrTs = time.Now().Unix()
 		self.removeRunningTask(id)
 	case mesos.TaskState_TASK_KILLED:
 		self.removeRunningTask(id)
@@ -217,6 +218,8 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		persistentTask.Status = (*status.State).String()
 		persistentTask.Message = status.GetMessage()
 		persistentTask.Url = url
+		tk.job.LastStatus = persistentTask.Status
+		tk.job.Save()
 		persistentTask.UpdateTs = time.Now().Unix()
 		persistentTask.Save()
 		log.Debug(url)
