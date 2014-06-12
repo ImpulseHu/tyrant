@@ -89,7 +89,7 @@
 		<td><%= executor %></td>
 		<td><%= owner %></td>
 		<td><%= TimestampToDate(create_ts) %></td>
-		<% if (status == "TASK_FINISHED" || status== "TASK_RUNNING") { %>
+		<% if (last_status == "TASK_FINISHED" || last_status== "TASK_RUNNING") { %>
 			<td><span class="label label-success"><%= last_status %></span> </td>
 		<% } else if (status == "READY") { %>
 			<td><span class="label label-primary"><%= last_status %></span> </td>
