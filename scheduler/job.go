@@ -19,6 +19,7 @@ type Job struct {
 	SuccessCnt    int    `db:"success_cnt" json:"success_cnt"`
 	ErrCnt        int    `db:"error_cnt" json:"error_cnt"`
 	CreateTs      int64  `db:"create_ts" json:"create_ts"`
+	LastTaskId    string `db:"last_task_id" json:"last_task_id"`
 	LastSuccessTs int64  `db:"last_success_ts" json:"last_success_ts"`
 	LastErrTs     int64  `db:"last_error_ts" json:"last_error_ts"`
 	LastStatus    string `db:"last_status" json:"last_status"`

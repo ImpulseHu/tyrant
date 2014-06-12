@@ -9,6 +9,7 @@ var app = app || {};
 			executor : "",
 			last_status : "",
 			last_success_ts : 0,
+			last_task_id : "",
 			executor_flags : "",
 			uris : "",
 			create_ts : 0,
