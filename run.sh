@@ -1,6 +1,6 @@
 cd shellExecutor
 go build
-cp -f shellExecutor ../example_executor
+mv -f shellExecutor ../example_executor
 cd ../
 rm example_executor.tar.gz -f
 tar -czf example_executor.tar.gz example_executor

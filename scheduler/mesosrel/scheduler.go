@@ -148,12 +148,6 @@ func (self *ResMan) handleMesosOffers(t *cmdMesosOffers) {
 		left += n
 	}
 
-	//remove from ready queue
-	for i := 0; i < idx; i++ {
-		log.Debugf("remove %+v from ready queue", ts[i])
-		self.ready.Del(ts[i].Tid)
-	}
-
 	//decline left offers
 	for i := idx; i < len(offers); i++ {
 		driver.DeclineOffer(offers[i].Id)
@@ -344,7 +338,7 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 	var tasks []mesos.TaskInfo
 	for i := 0; i < len(ts) && cpus > 0 && mem > 512; i++ {
 		t := ts[i]
-		log.Debugf("Launching task: %d, name:%s\n", self.taskId, t.Tid)
+		log.Debugf("Launching task: %s\n", t.Tid)
 		job := t.job
 		executor := &mesos.ExecutorInfo{
 			ExecutorId: &mesos.ExecutorID{Value: proto.String("default")},
@@ -389,11 +383,16 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		log.Warning(t.OfferId)
 		t.ExecutorId = executorId
 		self.running.Add(t.Tid, t)
+		log.Debugf("remove %+v from ready queue", t.Tid)
+		self.ready.Del(t.Tid)
+
 	}
 
 	if len(tasks) == 0 {
 		return 0
 	}
+
+	log.Debugf("%+v", tasks)
 
 	driver.LaunchTasks(offer.Id, tasks)
 
