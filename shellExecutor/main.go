@@ -44,7 +44,8 @@ func main() {
 					if err != nil {
 						log.Error(err.Error())
 					} else {
-						log.Debug(string(out))
+						println(string(out))
+						//	log.Debug(string(out))
 					}
 				}
 

@@ -190,6 +190,8 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 
 	log.Debugf("%+v", persistentTask)
 
+	var startTs time.Time
+
 	//todo: update in storage
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED:
@@ -204,6 +206,7 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		//todo: update something
 	case mesos.TaskState_TASK_STARTING:
 		//todo:update something
+		startTs = time.Now()
 	case mesos.TaskState_TASK_RUNNING:
 		//todo:update something
 	default:
@@ -211,14 +214,15 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	}
 
 	if persistentTask != nil {
-		//tk.SalveId = status.GetSlaveId().GetValue()
-		// "http: //localhost:5050/#/slaves/20140609-112613-16842879-5050-5832-0/browse?path=%2Ftmp%2Fmesos%2Fslaves%2F20140609-112613-16842879-5050-5832-0%2Fframeworks%2F20140609-112613-16842879-5050-5832-0033%2Fexecutors%2FtyrantExecutorId_2%2Fruns%2F60a6e6b2-5d65-4408-b048-e7dc6d3b12d2"
-		//master/save/executor/offerid
 		url := fmt.Sprintf("http://%v:%v/#/slaves/%s/browse?path=%s",
 			Inet_itoa(self.masterInfo.GetIp()), self.masterInfo.GetPort(), tk.SalveId, tk.Pwd)
 		persistentTask.Status = (*status.State).String()
 		persistentTask.Message = status.GetMessage()
 		persistentTask.Url = url
+		if persistentTask.StartTs == 0 {
+			persistentTask.StartTs = startTs.Unix()
+		}
+		persistentTask.JobName = tk.job.Name
 		persistentTask.UpdateTs = time.Now().Unix()
 		persistentTask.Save()
 		log.Debug(url)
