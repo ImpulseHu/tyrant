@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"time"
 
 	"code.google.com/p/goprotobuf/proto"
 	log "github.com/ngaut/logging"
@@ -29,12 +30,32 @@ func (self *ShellExecutor) OnRegister(
 	self.driver = driver
 }
 
+func (self *ShellExecutor) sendHeartbeat() {
+	log.Debug("send heartbeat")
+	for taskId, _ := range self.process {
+		tid := taskId
+		log.Debug("send heartbeat", tid)
+		status := &mesos.TaskStatus{
+			TaskId:  &mesos.TaskID{Value: &tid},
+			State:   mesos.NewTaskState(mesos.TaskState_TASK_RUNNING),
+			Message: proto.String("heartbeat..."),
+			Data:    []byte(self.pwd),
+		}
+		self.driver.SendStatusUpdate(status)
+	}
+}
+
 func (self *ShellExecutor) EventLoop() {
+	tick := time.NewTicker(3 * time.Second)
 	for {
 		select {
 		case taskId := <-self.finish:
 			self.lock.Lock()
 			delete(self.process, taskId) //thread safe
+			self.lock.Unlock()
+		case <-tick.C:
+			self.lock.Lock()
+			self.sendHeartbeat()
 			self.lock.Unlock()
 		}
 	}
@@ -72,6 +93,7 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 	})
 
 	log.Debugf("%+v", os.Args)
+	startch := make(chan struct{}, 1)
 	if len(os.Args) == 2 {
 		fname := taskInfo.TaskId.GetValue()
 		ioutil.WriteFile(fname, []byte(os.Args[1]), 0644)
@@ -81,10 +103,11 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 				self.finish <- taskInfo.TaskId.GetValue()
 			}()
 
-			out, err := cmd.Output()
 			self.lock.Lock()
 			self.process[taskInfo.TaskId.GetValue()] = cmd
 			self.lock.Unlock()
+			startch <- struct{}{}
+			out, err := cmd.Output()
 
 			if err != nil {
 				log.Error(err.Error())
@@ -110,6 +133,7 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 			Data:    []byte(self.pwd),
 		})
 	}
+	<-startch
 }
 
 func main() {
