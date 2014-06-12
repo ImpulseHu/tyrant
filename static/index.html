@@ -73,6 +73,7 @@
 								<th>Create At</th>
 								<th>Last Status</th>
 								<th>Last Success Time</th>
+								<th>Last Task ID</th>
 								<th></th>
 							</tr>
 						</thead>
@@ -103,6 +104,13 @@
 		<% } else { %>
 			<td> NEVER </td>
 		<% } %>
+
+		<% if (last_task_id) { %>
+		<td><%= last_task_id %></td>
+		<% } else { %>
+			<td></td>
+		<% } %>
+
 		<td>
 			<a href="javascript:void(0)" class="force-run-btn">Force Run</a> | 
 			<a href="javascript:void(0)" class="edit-btn">Edit</a> | 
