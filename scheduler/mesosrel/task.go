@@ -27,6 +27,7 @@ type Task struct {
 	SalveId     string
 	OfferId     string
 	ExecutorId  string
+	Pwd         string
 	LastUpdate  time.Time
 }
 

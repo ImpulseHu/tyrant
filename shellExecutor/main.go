@@ -12,6 +12,10 @@ import (
 )
 
 func main() {
+	pwd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
 	driver := mesos.ExecutorDriver{
 		Executor: &mesos.Executor{
 			Registered: func(
@@ -28,6 +32,7 @@ func main() {
 					TaskId:  taskInfo.TaskId,
 					State:   mesos.NewTaskState(mesos.TaskState_TASK_RUNNING),
 					Message: proto.String("Go task is running!"),
+					Data:    []byte(pwd),
 				})
 
 				log.Debugf("%+v", os.Args)
@@ -47,6 +52,7 @@ func main() {
 					TaskId:  taskInfo.TaskId,
 					State:   mesos.NewTaskState(mesos.TaskState_TASK_FINISHED),
 					Message: proto.String("Go task is done!"),
+					Data:    []byte(pwd),
 				})
 			},
 		},

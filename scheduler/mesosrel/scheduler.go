@@ -167,12 +167,18 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		t.wait <- struct{}{}
 	}()
 
+	pwd := string(status.Data)
+	log.Error(pwd)
 	taskId := *status.TaskId
 	id := *taskId.Value
 	log.Debugf("Received task %+v status: %+v", id, status)
 	tk := self.running.Get(id)
 	if tk == nil {
 		return
+	}
+
+	if len(pwd) > 0 && len(tk.Pwd) == 0 {
+		tk.Pwd = pwd
 	}
 
 	tk.LastUpdate = time.Now()
@@ -208,8 +214,8 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		//tk.SalveId = status.GetSlaveId().GetValue()
 		// "http: //localhost:5050/#/slaves/20140609-112613-16842879-5050-5832-0/browse?path=%2Ftmp%2Fmesos%2Fslaves%2F20140609-112613-16842879-5050-5832-0%2Fframeworks%2F20140609-112613-16842879-5050-5832-0033%2Fexecutors%2FtyrantExecutorId_2%2Fruns%2F60a6e6b2-5d65-4408-b048-e7dc6d3b12d2"
 		//master/save/executor/offerid
-		url := fmt.Sprintf("http://%v:%v/#/slaves/%s/browse?path=/tmp/mesos/salves/%s/frameworks/%s/executors/%s/runs/%s",
-			Inet_itoa(self.masterInfo.GetIp()), self.masterInfo.GetPort(), tk.SalveId, tk.SalveId, self.frameworkId, tk.ExecutorId, tk.OfferId)
+		url := fmt.Sprintf("http://%v:%v/#/slaves/%s/browse?path=%s",
+			Inet_itoa(self.masterInfo.GetIp()), self.masterInfo.GetPort(), tk.SalveId, tk.Pwd)
 		persistentTask.Status = (*status.State).String()
 		persistentTask.Message = status.GetMessage()
 		persistentTask.Url = url
