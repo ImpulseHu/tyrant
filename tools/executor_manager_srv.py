@@ -56,7 +56,10 @@ class ExecutorUploadHandler(tornado.web.RequestHandler):
                 os.makedirs(basepath)
 
             for f in self.request.files['file']:
-                ext_name = os.path.splitext(f['file'])[1]
+                if f['filename'].endswith('.tar.gz'):
+                    ext_name = '.tar.gz'
+                else:
+                    ext_name = os.path.splitext(f['filename'])[1]
                 rawname = 'latest' + ext_name
                 dstname = os.path.join(basepath, rawname)
                 fp = open(dstname, 'wb')
