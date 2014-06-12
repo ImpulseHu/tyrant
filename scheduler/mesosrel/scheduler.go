@@ -14,7 +14,6 @@ import (
 )
 
 type ResMan struct {
-	executor    *mesos.ExecutorInfo
 	exit        chan bool
 	taskId      int
 	timeoutSec  int
@@ -23,6 +22,7 @@ type ResMan struct {
 	ready       *TaskQueue
 	masterInfo  mesos.MasterInfo
 	frameworkId string
+	driver      *mesos.SchedulerDriver
 }
 
 type mesosDriver struct {
@@ -84,6 +84,9 @@ func (self *ResMan) addReadyTask(id string) (string, error) {
 		log.Error(err)
 		return "", err
 	}
+
+	job.LastTaskId = persistentTask.TaskId
+	job.Save()
 
 	t := &Task{Tid: persistentTask.TaskId, job: job, state: taskReady}
 	self.ready.Add(t.Tid, t)
@@ -199,8 +202,10 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		tk.job.LastErrTs = time.Now().Unix()
 		self.removeRunningTask(id)
 	case mesos.TaskState_TASK_KILLED:
+		tk.job.LastErrTs = time.Now().Unix()
 		self.removeRunningTask(id)
 	case mesos.TaskState_TASK_LOST:
+		tk.job.LastErrTs = time.Now().Unix()
 		self.removeRunningTask(id)
 	case mesos.TaskState_TASK_STAGING:
 		//todo: update something
@@ -255,6 +260,7 @@ func (self *ResMan) dispatch(cmd interface{}) {
 	case *cmdMesosMasterInfoUpdate:
 		info := cmd.(*cmdMesosMasterInfoUpdate)
 		self.masterInfo = info.masterInfo
+		self.driver = info.driver
 		if len(*info.frameworkId.Value) > 0 {
 			self.frameworkId = *info.frameworkId.Value
 		}
@@ -265,15 +271,19 @@ func (self *ResMan) TimeoutCheck(sec int) {
 	var timeoutTasks []string
 	self.running.Each(func(key string, t *Task) bool {
 		if t.state == taskRuning && time.Since(t.LastUpdate).Seconds() > float64(sec) {
-			log.Warning("%+v timeout", t)
+			log.Warningf("%+v timeout", t)
 			timeoutTasks = append(timeoutTasks, key)
 		}
 		return true
 	})
 
 	for _, taskId := range timeoutTasks {
-		log.Warning("remove timeout task %s", taskId)
-		self.running.Del(taskId)
+		log.Warningf("remove timeout task %s", taskId)
+		mid := &mesos.TaskID{}
+		id := taskId
+		mid.Value = &id
+		self.driver.KillTask(mid)
+		//self.running.Del(taskId)
 	}
 }
 
@@ -331,23 +341,31 @@ func (self *ResMan) genTaskId() string {
 func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos.Offer,
 	ts []*Task) (launchCount int) {
 	cpus, mem := extraCpuMem(offer)
-	tasks := make([]mesos.TaskInfo, 0)
+	var tasks []mesos.TaskInfo
 	for i := 0; i < len(ts) && cpus > 0 && mem > 512; i++ {
 		t := ts[i]
 		log.Debugf("Launching task: %d, name:%s\n", self.taskId, t.Tid)
 		job := t.job
+		executor := &mesos.ExecutorInfo{
+			ExecutorId: &mesos.ExecutorID{Value: proto.String("default")},
+			Command: &mesos.CommandInfo{
+				Value: proto.String("./example_executor"),
+			},
+			Name:   proto.String("Test Executor (Go)"),
+			Source: proto.String("go_test"),
+		}
 
-		self.executor.Command.Value = proto.String(job.Executor + ` "` + job.ExecutorFlags + `"`)
+		executor.Command.Value = proto.String(job.Executor + ` "` + job.ExecutorFlags + `"`)
 		executorId := self.genExtorId(t.Tid)
-		self.executor.ExecutorId = &mesos.ExecutorID{Value: proto.String(executorId)}
-		log.Debug(*self.executor.Command.Value)
+		executor.ExecutorId = &mesos.ExecutorID{Value: proto.String(executorId)}
+		log.Debug(*executor.Command.Value)
 
 		urls := splitTrim(job.Uris)
 		taskUris := make([]*mesos.CommandInfo_URI, len(urls))
 		for i, _ := range urls {
 			taskUris[i] = &mesos.CommandInfo_URI{Value: &urls[i]}
 		}
-		self.executor.Command.Uris = taskUris
+		executor.Command.Uris = taskUris
 
 		task := mesos.TaskInfo{
 			Name: proto.String("go-task"),
@@ -355,7 +373,7 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 				Value: proto.String(t.Tid),
 			},
 			SlaveId:  offer.SlaveId,
-			Executor: self.executor,
+			Executor: executor,
 			Resources: []*mesos.Resource{
 				mesos.ScalarResource("cpus", 1),
 				mesos.ScalarResource("mem", 512),
@@ -429,32 +447,19 @@ func (self *ResMan) OnDisconnected(driver *mesos.SchedulerDriver) {
 
 func (self *ResMan) OnRegister(driver *mesos.SchedulerDriver, fid mesos.FrameworkID, mi mesos.MasterInfo) {
 	log.Warningf("OnRegisterd master:%v:%v, frameworkId:%v", Inet_itoa(mi.GetIp()), mi.GetPort(), fid.GetValue())
-	cmd := &cmdMesosMasterInfoUpdate{masterInfo: mi, frameworkId: fid}
+	cmd := &cmdMesosMasterInfoUpdate{masterInfo: mi, frameworkId: fid, driver: driver}
 	self.cmdCh <- cmd
 }
 
 func (self *ResMan) OnReregister(driver *mesos.SchedulerDriver, mi mesos.MasterInfo) {
 	log.Warningf("OnReregisterd master:%v:%v", Inet_itoa(mi.GetIp()), mi.GetPort())
-	cmd := &cmdMesosMasterInfoUpdate{masterInfo: mi}
+	cmd := &cmdMesosMasterInfoUpdate{masterInfo: mi, driver: driver}
 	self.cmdCh <- cmd
 }
 
 func (self *ResMan) Run() {
 	master := flag.String("master", "localhost:5050", "Location of leading Mesos master")
-	executorUri := flag.String("executor-uri", "", "URI of executor executable")
 	flag.Parse()
-
-	self.executor = &mesos.ExecutorInfo{
-		ExecutorId: &mesos.ExecutorID{Value: proto.String("default")},
-		Command: &mesos.CommandInfo{
-			Value: proto.String("./example_executor"),
-			Uris: []*mesos.CommandInfo_URI{
-				&mesos.CommandInfo_URI{Value: executorUri},
-			},
-		},
-		Name:   proto.String("Test Executor (Go)"),
-		Source: proto.String("go_test"),
-	}
 
 	driver := mesos.SchedulerDriver{
 		Master: *master,

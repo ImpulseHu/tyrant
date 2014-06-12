@@ -20,6 +20,7 @@ type cmdGetTaskStatus struct {
 //frame registered or reregistered
 type cmdMesosMasterInfoUpdate struct {
 	masterInfo  mesos.MasterInfo
+	driver      *mesos.SchedulerDriver
 	frameworkId mesos.FrameworkID
 	ch          chan struct{}
 }
