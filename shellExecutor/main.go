@@ -31,17 +31,11 @@ func (self *ShellExecutor) OnRegister(
 }
 
 func (self *ShellExecutor) sendHeartbeat() {
-	log.Debug("send heartbeat")
+	//log.Debug("send heartbeat")
 	for taskId, _ := range self.process {
 		tid := taskId
-		log.Debug("send heartbeat", tid)
-		status := &mesos.TaskStatus{
-			TaskId:  &mesos.TaskID{Value: &tid},
-			State:   mesos.NewTaskState(mesos.TaskState_TASK_RUNNING),
-			Message: proto.String("heartbeat..."),
-			Data:    []byte(self.pwd),
-		}
-		self.driver.SendStatusUpdate(status)
+		log.Debug("send heartbeat, taskId", tid)
+		self.sendStatusUpdate(tid, mesos.TaskState_TASK_RUNNING, "")
 	}
 }
 
@@ -76,23 +70,22 @@ func (self *ShellExecutor) OnKillTask(driver *mesos.ExecutorDriver, tid mesos.Ta
 	}
 
 	log.Error("send kill state")
+	self.sendStatusUpdate(tid.GetValue(), mesos.TaskState_TASK_KILLED, "task killed by framework!")
+}
 
-	driver.SendStatusUpdate(&mesos.TaskStatus{
-		TaskId:  &tid,
-		State:   mesos.NewTaskState(mesos.TaskState_TASK_KILLED),
-		Message: proto.String("task killed by framework!"),
+func (self *ShellExecutor) sendStatusUpdate(taskId string, state mesos.TaskState, message string) {
+	self.driver.SendStatusUpdate(&mesos.TaskStatus{
+		TaskId:  &mesos.TaskID{Value: &taskId},
+		State:   mesos.NewTaskState(state),
+		Message: proto.String(message),
 		Data:    []byte(self.pwd),
 	})
 }
 
 func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo mesos.TaskInfo) {
 	fmt.Println("Launch task:", taskInfo.TaskId.GetValue())
-	driver.SendStatusUpdate(&mesos.TaskStatus{
-		TaskId:  taskInfo.TaskId,
-		State:   mesos.NewTaskState(mesos.TaskState_TASK_RUNNING),
-		Message: proto.String("Go task is running!"),
-		Data:    []byte(self.pwd),
-	})
+	log.Debug("send finish state")
+	self.sendStatusUpdate(taskInfo.TaskId.GetValue(), mesos.TaskState_TASK_RUNNING, "task is running!")
 
 	log.Debugf("%+v", os.Args)
 	startch := make(chan struct{}, 1)
@@ -104,13 +97,7 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 			defer func() {
 				self.finish <- taskInfo.TaskId.GetValue()
 				log.Debug("send finish state")
-
-				driver.SendStatusUpdate(&mesos.TaskStatus{
-					TaskId:  taskInfo.TaskId,
-					State:   mesos.NewTaskState(mesos.TaskState_TASK_FINISHED),
-					Message: proto.String("Go task is done!"),
-					Data:    []byte(self.pwd),
-				})
+				self.sendStatusUpdate(taskInfo.TaskId.GetValue(), mesos.TaskState_TASK_FINISHED, "Go task is done!")
 			}()
 
 			self.lock.Lock()
@@ -128,14 +115,13 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 		}()
 	} else {
 		log.Debug("send finish state")
-		driver.SendStatusUpdate(&mesos.TaskStatus{
-			TaskId:  taskInfo.TaskId,
-			State:   mesos.NewTaskState(mesos.TaskState_TASK_FINISHED),
-			Message: proto.String("Go task is done!"),
-			Data:    []byte(self.pwd),
-		})
+		self.sendStatusUpdate(taskInfo.TaskId.GetValue(), mesos.TaskState_TASK_FINISHED, "Go task is done!")
 	}
 	<-startch
+}
+
+func (self *ShellExecutor) OnShutdown(driver *mesos.ExecutorDriver) {
+	log.Warning("shutdown executor")
 }
 
 func main() {
@@ -151,6 +137,7 @@ func main() {
 			Registered: se.OnRegister,
 			KillTask:   se.OnKillTask,
 			LaunchTask: se.OnLaunchTask,
+			Shutdown:   se.OnShutdown,
 		},
 	}
 

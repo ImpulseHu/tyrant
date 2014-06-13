@@ -185,8 +185,6 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		log.Error(err)
 	}
 
-	log.Debugf("%+v", persistentTask)
-
 	//todo: update in storage
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED:
@@ -215,13 +213,15 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		url := fmt.Sprintf("http://%v:%v/#/slaves/%s/browse?path=%s",
 			Inet_itoa(self.masterInfo.GetIp()), self.masterInfo.GetPort(), tk.SalveId, tk.Pwd)
 		persistentTask.Status = (*status.State).String()
-		persistentTask.Message = status.GetMessage()
+		if len(status.GetMessage()) > 0 {
+			persistentTask.Message = status.GetMessage()
+		}
 		persistentTask.Url = url
 		tk.job.LastStatus = persistentTask.Status
 		tk.job.Save()
 		persistentTask.UpdateTs = time.Now().Unix()
 		persistentTask.Save()
-		log.Debug(url)
+		log.Debugf("persistentTask:%+v", persistentTask)
 	}
 }
 
