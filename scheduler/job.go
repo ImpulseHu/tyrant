@@ -112,7 +112,11 @@ func (j *Job) GetLastRunTime() int64 {
 // goroutine run this function periodly to check if this job is needed to auto start
 func (j Job) NeedAutoStart() bool {
 	if len(j.Schedule) > 0 {
-		expr := cronexpr.MustParse(j.Schedule)
+		expr, err := cronexpr.Parse(j.Schedule)
+		if err != nil {
+			log.Debug(err.Error())
+			return false
+		}
 		last_run_ts := j.GetLastRunTime()
 		if last_run_ts >= 0 {
 			last_run_time := time.Unix(last_run_ts, 0)
