@@ -129,6 +129,14 @@ func (self *ShellExecutor) OnShutdown(driver *mesos.ExecutorDriver) {
 	log.Warning("shutdown executor")
 }
 
+func (self *ShellExecutor) OnError(driver *mesos.ExecutorDriver, errMsg string) {
+	log.Warning(errMsg)
+}
+
+func (self *ShellExecutor) OnDisconnected(driver *mesos.ExecutorDriver) {
+	log.Warning("disconnected")
+}
+
 func main() {
 	pwd, err := os.Getwd()
 	if err != nil {
@@ -139,10 +147,12 @@ func main() {
 		process: make(map[string]*exec.Cmd)}
 	driver := mesos.ExecutorDriver{
 		Executor: &mesos.Executor{
-			Registered: se.OnRegister,
-			KillTask:   se.OnKillTask,
-			LaunchTask: se.OnLaunchTask,
-			Shutdown:   se.OnShutdown,
+			Registered:   se.OnRegister,
+			KillTask:     se.OnKillTask,
+			LaunchTask:   se.OnLaunchTask,
+			Shutdown:     se.OnShutdown,
+			Error:        se.OnError,
+			Disconnected: se.OnDisconnected,
 		},
 	}
 
