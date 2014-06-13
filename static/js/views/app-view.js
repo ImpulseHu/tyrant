@@ -28,13 +28,13 @@ var app = app || {};
         },
 
         getObject: function() {
-        	alert(this.$el.find(".executor-flag-input").val())
         	return {
 				name : this.$el.find(".name-input").val(),
 	    		executor : this.$el.find(".executor-input").val(),
 	    	    executor_flags : this.$el.find(".executor-flag-input").val(),
 				uris : this.$el.find('.uris-input').val(),
 				schedule : this.$el.find('.schedule-input').val(),
+				hook : this.$el.find('.hook-input').val(),
 	    	    owner : this.$el.find(".owner-input").val()
 			}
         }

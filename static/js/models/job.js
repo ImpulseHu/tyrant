@@ -15,6 +15,7 @@ var app = app || {};
 			create_ts : 0,
 			owner : "",
 			schedule : "",
+			hook : "",
 		},
 		urlRoot: '/job',
 	});
