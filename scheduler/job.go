@@ -1,8 +1,11 @@
 package scheduler
 
 import (
+	"bytes"
+	"encoding/json"
 	"github.com/gorhill/cronexpr"
 	log "github.com/ngaut/logging"
+	"net/http"
 	"strconv"
 	"time"
 )
@@ -28,8 +31,9 @@ type Job struct {
 	Mem           int    `db:"mem" json:"mem"`
 	Disk          int64  `db:"disk" json:"disk"`
 	Disabled      bool   `db:"disabled" json:"disabled"`
-	Uris          string `db:"uris" json:"uris"`         // 2048
-	Schedule      string `db:"schedule" json:"schedule"` // 2048
+	Uris          string `db:"uris" json:"uris"` // 2048
+	Schedule      string `db:"schedule" json:"schedule"`
+	WebHookUrl    string `db:"hook" json:"hook"`
 }
 
 func GetJobList() []Job {
@@ -51,7 +55,6 @@ func JobExists(id string) bool {
 	if j.Id == 0 {
 		return false
 	}
-
 	return true
 }
 
@@ -151,4 +154,25 @@ func (j *Job) Remove() error {
 	}
 	j.Id = -1
 	return nil
+}
+
+func (j *Job) SendNotify(t *Task) {
+	go func() {
+		log.Info("Send Notify for Job", j, t)
+		if len(j.WebHookUrl) == 0 {
+			return
+		}
+		buf, err := json.Marshal(struct {
+			Job  *Job  `json:"job"`
+			Task *Task `json:"task"`
+		}{j, t})
+		if err != nil {
+			log.Debug(err.Error(), j, t)
+		}
+		body := bytes.NewBuffer(buf)
+		_, err = http.Post(j.WebHookUrl, "application/json", body)
+		if err != nil {
+			log.Debug(err.Error(), j, t)
+		}
+	}()
 }
