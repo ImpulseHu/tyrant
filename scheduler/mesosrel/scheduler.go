@@ -210,8 +210,14 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	}
 
 	if persistentTask != nil {
-		url := fmt.Sprintf("http://%v:%v/#/slaves/%s/browse?path=%s",
-			Inet_itoa(self.masterInfo.GetIp()), self.masterInfo.GetPort(), tk.SalveId, tk.Pwd)
+		var url string
+		if len(tk.Pwd) > 0 {
+			url = fmt.Sprintf("http://%v:%v/#/slaves/%s/browse?path=%s",
+				Inet_itoa(self.masterInfo.GetIp()), self.masterInfo.GetPort(), tk.SalveId, tk.Pwd)
+		} else {
+			url = fmt.Sprintf("http://%v:%v/#/frameworks/%s", Inet_itoa(self.masterInfo.GetIp()),
+				self.masterInfo.GetPort(), self.frameworkId)
+		}
 		persistentTask.Status = (*status.State).String()
 		if len(status.GetMessage()) > 0 {
 			persistentTask.Message = status.GetMessage()
