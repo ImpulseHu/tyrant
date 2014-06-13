@@ -40,7 +40,7 @@ func (self *ShellExecutor) sendHeartbeat() {
 }
 
 func (self *ShellExecutor) EventLoop() {
-	tick := time.NewTicker(3 * time.Second)
+	tick := time.NewTicker(10 * time.Second)
 	for {
 		select {
 		case taskId := <-self.finish:
@@ -84,7 +84,7 @@ func (self *ShellExecutor) sendStatusUpdate(taskId string, state mesos.TaskState
 
 func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo mesos.TaskInfo) {
 	fmt.Println("Launch task:", taskInfo.TaskId.GetValue())
-	log.Debug("send finish state")
+	log.Debug("send running state")
 	self.sendStatusUpdate(taskInfo.TaskId.GetValue(), mesos.TaskState_TASK_RUNNING, "task is running!")
 
 	log.Debugf("%+v", os.Args)
@@ -98,6 +98,8 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 				self.finish <- taskInfo.TaskId.GetValue()
 				log.Debug("send finish state")
 				self.sendStatusUpdate(taskInfo.TaskId.GetValue(), mesos.TaskState_TASK_FINISHED, "Go task is done!")
+				time.Sleep(10 * time.Second)
+				driver.Stop()
 			}()
 
 			self.lock.Lock()
@@ -116,6 +118,9 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 	} else {
 		log.Debug("send finish state")
 		self.sendStatusUpdate(taskInfo.TaskId.GetValue(), mesos.TaskState_TASK_FINISHED, "Go task is done!")
+		time.Sleep(10 * time.Second)
+		driver.Stop()
+
 	}
 	<-startch
 }
