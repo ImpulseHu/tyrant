@@ -8,3 +8,5 @@ works on mesos 0.18.2
 usage:
 ./tyrant --master=zk://ip:port/mesos
 
+
+open browser http://localhost:9090
