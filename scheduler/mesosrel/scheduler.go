@@ -490,5 +490,6 @@ func (self *ResMan) Run() {
 
 	driver.Start()
 	<-self.exit
+	log.Debug("exit")
 	driver.Stop(false)
 }
