@@ -206,7 +206,7 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	case mesos.TaskState_TASK_RUNNING:
 		//todo:update something
 	default:
-		panic("should never happend")
+		log.Fatalf("should never happend %+v", status.State)
 	}
 
 	if persistentTask != nil {
@@ -227,6 +227,7 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		tk.job.Save()
 		persistentTask.UpdateTs = time.Now().Unix()
 		persistentTask.Save()
+		tk.job.SendNotify(persistentTask)
 		log.Debugf("persistentTask:%+v", persistentTask)
 	}
 }
