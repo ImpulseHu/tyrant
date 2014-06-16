@@ -22,5 +22,5 @@ Task Running Status View:
 	
 ## LICENSE
 
-tyrant is distributed under the terms of the MIT License. See [LICENSE](https://github.com/coocood/jas/blob/master/LICENSE) for details.
+tyrant is distributed under the terms of the MIT License. 
 
