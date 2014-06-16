@@ -78,7 +78,7 @@ func (self *ShellExecutor) sendStatusUpdate(taskId string, state mesos.TaskState
 		TaskId:  &mesos.TaskID{Value: &taskId},
 		State:   mesos.NewTaskState(state),
 		Message: proto.String(message),
-		Data:    []byte(self.pwd),
+		Data:    []byte(self.pwd), //todo: using FrameworkMessage
 	})
 }
 

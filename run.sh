@@ -1,3 +1,4 @@
+go build
 cd shellExecutor
 go build
 mv -f shellExecutor ../example_executor

@@ -174,6 +174,8 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		return
 	}
 
+	//todo:check database and add this task to running queue
+
 	if len(pwd) > 0 && len(tk.Pwd) == 0 {
 		tk.Pwd = pwd
 	}
@@ -466,12 +468,17 @@ func (self *ResMan) OnReregister(driver *mesos.SchedulerDriver, mi mesos.MasterI
 func (self *ResMan) Run() {
 	master := flag.String("master", "localhost:5050", "Location of leading Mesos master")
 	flag.Parse()
+	frameworkIdStr := "tyrant"
+	frameworkId := &mesos.FrameworkID{Value: &frameworkIdStr}
+	failoverTimeout := flag.Float64("failoverTimeout", 60, "failover timeout")
 
 	driver := mesos.SchedulerDriver{
 		Master: *master,
 		Framework: mesos.FrameworkInfo{
-			Name: proto.String("GoFramework"),
-			User: proto.String(""),
+			Name:            proto.String("GoFramework"),
+			User:            proto.String(""),
+			FailoverTimeout: failoverTimeout,
+			Id:              frameworkId,
 		},
 
 		Scheduler: &mesos.Scheduler{
