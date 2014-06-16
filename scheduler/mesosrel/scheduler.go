@@ -192,13 +192,7 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	case mesos.TaskState_TASK_FINISHED:
 		tk.job.LastSuccessTs = time.Now().Unix()
 		self.removeRunningTask(id)
-	case mesos.TaskState_TASK_FAILED:
-		tk.job.LastErrTs = time.Now().Unix()
-		self.removeRunningTask(id)
-	case mesos.TaskState_TASK_KILLED:
-		tk.job.LastErrTs = time.Now().Unix()
-		self.removeRunningTask(id)
-	case mesos.TaskState_TASK_LOST:
+	case mesos.TaskState_TASK_FAILED, mesos.TaskState_TASK_KILLED, mesos.TaskState_TASK_LOST:
 		tk.job.LastErrTs = time.Now().Unix()
 		self.removeRunningTask(id)
 	case mesos.TaskState_TASK_STAGING:
