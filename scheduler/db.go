@@ -44,7 +44,7 @@ func NewDbMap() *gorp.DbMap {
 	err = dbmap.CreateTablesIfNotExists()
 
 	if err != nil {
-		log.Fatal(err)
+		log.Warning(err)
 	}
 	return dbmap
 }

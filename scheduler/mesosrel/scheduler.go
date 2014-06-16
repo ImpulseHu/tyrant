@@ -45,6 +45,10 @@ type cmdMesosStatusUpdate struct {
 	status mesos.TaskStatus
 }
 
+var (
+	failoverTimeout = flag.Float64("failoverTimeout", 60, "failover timeout")
+)
+
 func NewResMan() *ResMan {
 	return &ResMan{
 		ready:      NewTaskQueue(),
@@ -457,18 +461,14 @@ func (self *ResMan) OnReregister(driver *mesos.SchedulerDriver, mi mesos.MasterI
 	self.cmdCh <- cmd
 }
 
-func (self *ResMan) Run() {
-	master := flag.String("master", "localhost:5050", "Location of leading Mesos master")
-	flag.Parse()
+func (self *ResMan) Run(master string) {
 	frameworkIdStr := "tyrant"
 	frameworkId := &mesos.FrameworkID{Value: &frameworkIdStr}
-	failoverTimeout := flag.Float64("failoverTimeout", 60, "failover timeout")
-
 	driver := mesos.SchedulerDriver{
-		Master: *master,
+		Master: master,
 		Framework: mesos.FrameworkInfo{
 			Name:            proto.String("GoFramework"),
-			User:            proto.String(""),
+			User:            proto.String("goroutine"),
 			FailoverTimeout: failoverTimeout,
 			Id:              frameworkId,
 		},
