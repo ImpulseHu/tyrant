@@ -17,3 +17,10 @@ Job List:
 Task Running Status View:
 
 ![Snapshot2](https://raw.githubusercontent.com/ngaut/tyrant/master/docs/snapshot/snapshot-3.png)
+
+
+	
+## LICENSE
+
+tyrant is distributed under the terms of the MIT License. See [LICENSE](https://github.com/coocood/jas/blob/master/LICENSE) for details.
+
