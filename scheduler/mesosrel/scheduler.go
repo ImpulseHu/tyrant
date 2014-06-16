@@ -78,7 +78,7 @@ func (self *ResMan) addReadyTask(id string) (string, error) {
 
 	persistentTask := &scheduler.Task{TaskId: self.genTaskId(), Status: scheduler.STATUS_READY,
 		StartTs: time.Now().Unix(), JobName: job.Name}
-	log.Warningf("%+v", persistentTask)
+	log.Debugf("%+v", persistentTask)
 	err = persistentTask.Save()
 	if err != nil {
 		log.Error(err)
@@ -192,13 +192,7 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	case mesos.TaskState_TASK_FINISHED:
 		tk.job.LastSuccessTs = time.Now().Unix()
 		self.removeRunningTask(id)
-	case mesos.TaskState_TASK_FAILED:
-		tk.job.LastErrTs = time.Now().Unix()
-		self.removeRunningTask(id)
-	case mesos.TaskState_TASK_KILLED:
-		tk.job.LastErrTs = time.Now().Unix()
-		self.removeRunningTask(id)
-	case mesos.TaskState_TASK_LOST:
+	case mesos.TaskState_TASK_FAILED, mesos.TaskState_TASK_KILLED, mesos.TaskState_TASK_LOST:
 		tk.job.LastErrTs = time.Now().Unix()
 		self.removeRunningTask(id)
 	case mesos.TaskState_TASK_STAGING:
@@ -316,9 +310,7 @@ func (self *ResMan) getReadyTasks() []*Task {
 }
 
 func extraCpuMem(offer mesos.Offer) (int, int) {
-	var cpus int
-	var mem int
-
+	var cpus, mem int
 	for _, r := range offer.Resources {
 		if r.GetName() == "cpus" && r.GetType() == mesos.Value_SCALAR {
 			cpus += int(r.GetScalar().GetValue())
@@ -352,9 +344,9 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		executor := &mesos.ExecutorInfo{
 			ExecutorId: &mesos.ExecutorID{Value: proto.String("default")},
 			Command: &mesos.CommandInfo{
-				Value: proto.String("./example_executor"),
+				Value: proto.String(""),
 			},
-			Name:   proto.String("Test Executor (Go)"),
+			Name:   proto.String("shell executor (Go)"),
 			Source: proto.String("go_test"),
 		}
 
