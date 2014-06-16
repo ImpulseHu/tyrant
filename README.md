@@ -10,6 +10,10 @@ usage:
 
 open browser http://localhost:9090
 
+Job List:
 
 ![Snapshot1](https://raw.githubusercontent.com/ngaut/tyrant/master/docs/snapshot/snapshot-1.png)
+
+Task Running Status View:
+
 ![Snapshot2](https://raw.githubusercontent.com/ngaut/tyrant/master/docs/snapshot/snapshot-3.png)
