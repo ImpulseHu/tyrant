@@ -1,4 +1,4 @@
-tyrant
+Tyrant
 ======
 works on mesos 0.18.2+
 
