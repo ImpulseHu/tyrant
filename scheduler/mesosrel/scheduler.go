@@ -173,18 +173,17 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	taskId := *status.TaskId
 	id := *taskId.Value
 	log.Debugf("Received task %+v status: %+v", id, status)
-	tk := self.running.Get(id)
-	if tk == nil {
+	currentTask := self.running.Get(id)
+	if currentTask == nil {
 		return
 	}
 
 	//todo:check database and add this task to running queue
-
-	if len(pwd) > 0 && len(tk.Pwd) == 0 {
-		tk.Pwd = pwd
+	if len(pwd) > 0 && len(currentTask.Pwd) == 0 {
+		currentTask.Pwd = pwd
 	}
 
-	tk.LastUpdate = time.Now()
+	currentTask.LastUpdate = time.Now()
 
 	persistentTask, err := scheduler.GetTaskByTaskId(id)
 	if err != nil {
@@ -194,10 +193,10 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	//todo: update in storage
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED:
-		tk.job.LastSuccessTs = time.Now().Unix()
+		currentTask.job.LastSuccessTs = time.Now().Unix()
 		self.removeRunningTask(id)
 	case mesos.TaskState_TASK_FAILED, mesos.TaskState_TASK_KILLED, mesos.TaskState_TASK_LOST:
-		tk.job.LastErrTs = time.Now().Unix()
+		currentTask.job.LastErrTs = time.Now().Unix()
 		self.removeRunningTask(id)
 	case mesos.TaskState_TASK_STAGING:
 		//todo: update something
@@ -209,27 +208,33 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		log.Fatalf("should never happend %+v", status.State)
 	}
 
-	if persistentTask != nil {
-		var url string
-		if len(tk.Pwd) > 0 {
-			url = fmt.Sprintf("http://%v:%v/#/slaves/%s/browse?path=%s",
-				Inet_itoa(self.masterInfo.GetIp()), self.masterInfo.GetPort(), tk.SalveId, tk.Pwd)
-		} else {
-			url = fmt.Sprintf("http://%v:%v/#/frameworks/%s", Inet_itoa(self.masterInfo.GetIp()),
-				self.masterInfo.GetPort(), self.frameworkId)
-		}
-		persistentTask.Status = (*status.State).String()
-		if len(status.GetMessage()) > 0 {
-			persistentTask.Message = status.GetMessage()
-		}
-		persistentTask.Url = url
-		tk.job.LastStatus = persistentTask.Status
-		tk.job.Save()
-		persistentTask.UpdateTs = time.Now().Unix()
-		persistentTask.Save()
-		tk.job.SendNotify(persistentTask)
-		log.Debugf("persistentTask:%+v", persistentTask)
+	self.saveTaskStatus(persistentTask, status, currentTask)
+}
+
+func (self *ResMan) saveTaskStatus(persistentTask *scheduler.Task, status mesos.TaskStatus, currentTask *Task) {
+	if persistentTask == nil {
+		return
 	}
+
+	var url string
+	if len(currentTask.Pwd) > 0 {
+		url = fmt.Sprintf("http://%v:%v/#/slaves/%s/browse?path=%s",
+			Inet_itoa(self.masterInfo.GetIp()), self.masterInfo.GetPort(), currentTask.SalveId, currentTask.Pwd)
+	} else {
+		url = fmt.Sprintf("http://%v:%v/#/frameworks/%s", Inet_itoa(self.masterInfo.GetIp()),
+			self.masterInfo.GetPort(), self.frameworkId)
+	}
+	persistentTask.Status = (*status.State).String()
+	if len(status.GetMessage()) > 0 {
+		persistentTask.Message = status.GetMessage()
+	}
+	persistentTask.Url = url
+	currentTask.job.LastStatus = persistentTask.Status
+	currentTask.job.Save()
+	persistentTask.UpdateTs = time.Now().Unix()
+	persistentTask.Save()
+	currentTask.job.SendNotify(persistentTask)
+	log.Debugf("persistentTask:%+v", persistentTask)
 }
 
 func (self *ResMan) OnRunJob(id string) (string, error) {
@@ -468,7 +473,7 @@ func (self *ResMan) Run(master string) {
 		Master: master,
 		Framework: mesos.FrameworkInfo{
 			Name:            proto.String("GoFramework"),
-			User:            proto.String("goroutine"),
+			User:            proto.String(""),
 			FailoverTimeout: failoverTimeout,
 			Id:              frameworkId,
 		},
