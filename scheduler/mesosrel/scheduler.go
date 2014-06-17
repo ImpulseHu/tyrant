@@ -158,7 +158,16 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	log.Debugf("Received task %+v status: %+v", taskId, status)
 	currentTask := self.running.Get(taskId)
 	if currentTask == nil {
-		return
+		task, err := scheduler.GetTaskByTaskId(taskId)
+		if err != nil {
+			return
+		}
+		job, err := scheduler.GetJobByName(task.JobName)
+		if err != nil {
+			return
+		}
+		currentTask = &Task{Tid: task.TaskId, job: job, SlaveId: status.SlaveId.GetValue(), state: taskRuning}
+		self.running.Add(currentTask.Tid, currentTask) //add this alone task to runing queue
 	}
 
 	//todo:check database and add this task to running queue
@@ -202,7 +211,7 @@ func (self *ResMan) saveTaskStatus(persistentTask *scheduler.Task, status mesos.
 	var url string
 	if len(currentTask.Pwd) > 0 {
 		url = fmt.Sprintf("http://%v:%v/#/slaves/%s/browse?path=%s",
-			Inet_itoa(self.masterInfo.GetIp()), self.masterInfo.GetPort(), currentTask.SalveId, currentTask.Pwd)
+			Inet_itoa(self.masterInfo.GetIp()), self.masterInfo.GetPort(), currentTask.SlaveId, currentTask.Pwd)
 	} else {
 		url = fmt.Sprintf("http://%v:%v/#/frameworks/%s", Inet_itoa(self.masterInfo.GetIp()),
 			self.masterInfo.GetPort(), self.frameworkId)
@@ -355,10 +364,7 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		t.state = taskRuning
 
 		t.LastUpdate = time.Now()
-		t.SalveId = offer.GetSlaveId().GetValue()
-		t.OfferId = offer.GetId().GetValue()
-		log.Warning(t.OfferId)
-		t.ExecutorId = executorId
+		t.SlaveId = offer.GetSlaveId().GetValue()
 		self.running.Add(t.Tid, t)
 		log.Debugf("remove %+v from ready queue", t.Tid)
 		self.ready.Del(t.Tid)

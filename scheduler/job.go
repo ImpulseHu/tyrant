@@ -3,11 +3,12 @@ package scheduler
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/gorhill/cronexpr"
-	log "github.com/ngaut/logging"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/gorhill/cronexpr"
+	log "github.com/ngaut/logging"
 )
 
 // Job define
@@ -89,6 +90,15 @@ func GetJobById(id string) (*Job, error) {
 	}
 	var job Job
 	err = sharedDbMap.SelectOne(&job, "select * from jobs where id=?", nid)
+	if err != nil {
+		return nil, err
+	}
+	return &job, nil
+}
+
+func GetJobByName(name string) (*Job, error) {
+	var job Job
+	err := sharedDbMap.SelectOne(&job, "select * from jobs where name=?", name)
 	if err != nil {
 		return nil, err
 	}

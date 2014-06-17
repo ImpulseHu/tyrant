@@ -24,9 +24,7 @@ type Task struct {
 	job         *scheduler.Job
 	state       int
 	FrameworkId string
-	SalveId     string
-	OfferId     string
-	ExecutorId  string
+	SlaveId     string
 	Pwd         string
 	LastUpdate  time.Time
 }
