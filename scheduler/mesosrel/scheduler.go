@@ -240,17 +240,13 @@ func (self *ResMan) OnRunJob(id string) (string, error) {
 func (self *ResMan) dispatch(cmd interface{}) {
 	switch cmd.(type) {
 	case *cmdRunTask:
-		t := cmd.(*cmdRunTask)
-		self.handleAddRunTask(t)
+		self.handleAddRunTask(cmd.(*cmdRunTask))
 	case *cmdMesosError:
-		t := cmd.(*cmdMesosError)
-		self.handleMesosError(t)
+		self.handleMesosError(cmd.(*cmdMesosError))
 	case *cmdMesosOffers:
-		t := cmd.(*cmdMesosOffers)
-		self.handleMesosOffers(t)
+		self.handleMesosOffers(cmd.(*cmdMesosOffers))
 	case *cmdMesosStatusUpdate:
-		t := cmd.(*cmdMesosStatusUpdate)
-		self.handleMesosStatusUpdate(t)
+		self.handleMesosStatusUpdate(cmd.(*cmdMesosStatusUpdate))
 	case *cmdMesosMasterInfoUpdate:
 		info := cmd.(*cmdMesosMasterInfoUpdate)
 		self.masterInfo = info.masterInfo
@@ -324,15 +320,13 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		log.Debugf("Launching task: %s\n", t.Tid)
 		job := t.job
 		executor := &mesos.ExecutorInfo{
-			ExecutorId: &mesos.ExecutorID{Value: proto.String("default")},
 			Command: &mesos.CommandInfo{
-				Value: proto.String(""),
+				Value: proto.String(job.Executor + ` "` + job.ExecutorFlags + `"`),
 			},
 			Name:   proto.String("shell executor (Go)"),
 			Source: proto.String("go_test"),
 		}
 
-		executor.Command.Value = proto.String(job.Executor + ` "` + job.ExecutorFlags + `"`)
 		executorId := self.genExtorId(t.Tid)
 		executor.ExecutorId = &mesos.ExecutorID{Value: proto.String(executorId)}
 		log.Debug(*executor.Command.Value)
@@ -446,7 +440,7 @@ func (self *ResMan) Run(master string) {
 	driver := mesos.SchedulerDriver{
 		Master: master,
 		Framework: mesos.FrameworkInfo{
-			Name:            proto.String("GoFramework"),
+			Name:            proto.String("TyrantFramework"),
 			User:            proto.String(""),
 			FailoverTimeout: failoverTimeout,
 			Id:              frameworkId,
