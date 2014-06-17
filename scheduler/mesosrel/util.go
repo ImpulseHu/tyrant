@@ -7,24 +7,6 @@ import (
 	"mesos.apache.org/mesos"
 )
 
-type cmdRunTask struct {
-	Id string
-	ch chan *pair //return task id and error
-}
-
-type cmdGetTaskStatus struct {
-	taskId string
-	ch     chan *pair
-}
-
-//frame registered or reregistered
-type cmdMesosMasterInfoUpdate struct {
-	masterInfo  mesos.MasterInfo
-	driver      *mesos.SchedulerDriver
-	frameworkId mesos.FrameworkID
-	ch          chan struct{}
-}
-
 func splitTrim(s string) []string {
 	tmp := strings.Split(s, ",")
 	ss := make([]string, 0)
@@ -39,6 +21,21 @@ func splitTrim(s string) []string {
 
 func Inet_itoa(a uint32) string {
 	return fmt.Sprintf("%d.%d.%d.%d", byte(a), byte(a>>8), byte(a>>16), byte(a>>24))
+}
+
+func extraCpuMem(offer mesos.Offer) (int, int) {
+	var cpus, mem int
+	for _, r := range offer.Resources {
+		if r.GetName() == "cpus" && r.GetType() == mesos.Value_SCALAR {
+			cpus += int(r.GetScalar().GetValue())
+		}
+
+		if r.GetName() == "mem" && r.GetType() == mesos.Value_SCALAR {
+			mem += int(r.GetScalar().GetValue())
+		}
+	}
+
+	return cpus, mem
 }
 
 type pair struct {

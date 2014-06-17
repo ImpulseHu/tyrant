@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/juju/errors"
 	log "github.com/ngaut/logging"
 
 	"code.google.com/p/goprotobuf/proto"
@@ -28,21 +29,6 @@ type ResMan struct {
 type mesosDriver struct {
 	driver *mesos.SchedulerDriver
 	wait   chan struct{}
-}
-
-type cmdMesosOffers struct {
-	mesosDriver
-	offers []mesos.Offer
-}
-
-type cmdMesosError struct {
-	mesosDriver
-	err string
-}
-
-type cmdMesosStatusUpdate struct {
-	mesosDriver
-	status mesos.TaskStatus
 }
 
 var (
@@ -77,7 +63,7 @@ func (self *ResMan) addReadyTask(id string) (string, error) {
 
 	job, err := scheduler.GetJobById(id)
 	if err != nil {
-		return "", err
+		return "", errors.Trace(err)
 	}
 
 	persistentTask := &scheduler.Task{TaskId: self.genTaskId(), Status: scheduler.STATUS_READY,
@@ -85,8 +71,7 @@ func (self *ResMan) addReadyTask(id string) (string, error) {
 	log.Debugf("%+v", persistentTask)
 	err = persistentTask.Save()
 	if err != nil {
-		log.Error(err)
-		return "", err
+		return "", errors.Trace(err)
 	}
 
 	job.LastTaskId = persistentTask.TaskId
@@ -169,7 +154,6 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		t.wait <- struct{}{}
 	}()
 
-	pwd := string(status.Data)
 	taskId := *status.TaskId
 	id := *taskId.Value
 	log.Debugf("Received task %+v status: %+v", id, status)
@@ -179,6 +163,7 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 	}
 
 	//todo:check database and add this task to running queue
+	pwd := string(status.Data)
 	if len(pwd) > 0 && len(currentTask.Pwd) == 0 {
 		currentTask.Pwd = pwd
 	}
@@ -190,7 +175,6 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		log.Error(err)
 	}
 
-	//todo: update in storage
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED:
 		currentTask.job.LastSuccessTs = time.Now().Unix()
@@ -318,21 +302,6 @@ func (self *ResMan) getReadyTasks() []*Task {
 	return rts
 }
 
-func extraCpuMem(offer mesos.Offer) (int, int) {
-	var cpus, mem int
-	for _, r := range offer.Resources {
-		if r.GetName() == "cpus" && r.GetType() == mesos.Value_SCALAR {
-			cpus += int(r.GetScalar().GetValue())
-		}
-
-		if r.GetName() == "mem" && r.GetType() == mesos.Value_SCALAR {
-			mem += int(r.GetScalar().GetValue())
-		}
-	}
-
-	return cpus, mem
-}
-
 func (self *ResMan) genExtorId(taskId string) string {
 	return taskId
 }
@@ -395,7 +364,8 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		self.running.Add(t.Tid, t)
 		log.Debugf("remove %+v from ready queue", t.Tid)
 		self.ready.Del(t.Tid)
-
+		cpus -= CPU_UNIT
+		mem -= MEM_UNIT
 	}
 
 	if len(tasks) == 0 {
@@ -467,7 +437,7 @@ func (self *ResMan) OnReregister(driver *mesos.SchedulerDriver, mi mesos.MasterI
 }
 
 func (self *ResMan) Run(master string) {
-	frameworkIdStr := "tyrant"
+	frameworkIdStr := FRAMEWORK_ID
 	frameworkId := &mesos.FrameworkID{Value: &frameworkIdStr}
 	driver := mesos.SchedulerDriver{
 		Master: master,
