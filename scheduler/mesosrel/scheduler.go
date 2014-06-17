@@ -124,7 +124,7 @@ func (self *ResMan) handleMesosOffers(t *cmdMesosOffers) {
 		t.wait <- struct{}{}
 	}()
 
-	log.Debug("ResourceOffers")
+	log.Debugf("ResourceOffers %+v", offers)
 	ts := self.getReadyTasks()
 	log.Debugf("ready tasks:%+v", ts)
 	var idx, left int
@@ -154,10 +154,9 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		t.wait <- struct{}{}
 	}()
 
-	taskId := *status.TaskId
-	id := *taskId.Value
-	log.Debugf("Received task %+v status: %+v", id, status)
-	currentTask := self.running.Get(id)
+	taskId := status.TaskId.GetValue()
+	log.Debugf("Received task %+v status: %+v", taskId, status)
+	currentTask := self.running.Get(taskId)
 	if currentTask == nil {
 		return
 	}
@@ -170,18 +169,13 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 
 	currentTask.LastUpdate = time.Now()
 
-	persistentTask, err := scheduler.GetTaskByTaskId(id)
-	if err != nil {
-		log.Error(err)
-	}
-
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED:
 		currentTask.job.LastSuccessTs = time.Now().Unix()
-		self.removeRunningTask(id)
+		self.removeRunningTask(taskId)
 	case mesos.TaskState_TASK_FAILED, mesos.TaskState_TASK_KILLED, mesos.TaskState_TASK_LOST:
 		currentTask.job.LastErrTs = time.Now().Unix()
-		self.removeRunningTask(id)
+		self.removeRunningTask(taskId)
 	case mesos.TaskState_TASK_STAGING:
 		//todo: update something
 	case mesos.TaskState_TASK_STARTING:
@@ -190,6 +184,11 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		//todo:update something
 	default:
 		log.Fatalf("should never happend %+v", status.State)
+	}
+
+	persistentTask, err := scheduler.GetTaskByTaskId(taskId)
+	if err != nil {
+		log.Error(err)
 	}
 
 	self.saveTaskStatus(persistentTask, status, currentTask)
@@ -217,7 +216,12 @@ func (self *ResMan) saveTaskStatus(persistentTask *scheduler.Task, status mesos.
 	currentTask.job.Save()
 	persistentTask.UpdateTs = time.Now().Unix()
 	persistentTask.Save()
-	currentTask.job.SendNotify(persistentTask)
+	switch *status.State {
+	case mesos.TaskState_TASK_FINISHED, mesos.TaskState_TASK_FAILED,
+		mesos.TaskState_TASK_KILLED, mesos.TaskState_TASK_LOST:
+		currentTask.job.SendNotify(persistentTask)
+	}
+
 	log.Debugf("persistentTask:%+v", persistentTask)
 }
 
