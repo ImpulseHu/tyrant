@@ -170,7 +170,6 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		self.running.Add(currentTask.Tid, currentTask) //add this alone task to runing queue
 	}
 
-	//todo:check database and add this task to running queue
 	pwd := string(status.Data)
 	if len(pwd) > 0 && len(currentTask.Pwd) == 0 {
 		currentTask.Pwd = pwd
