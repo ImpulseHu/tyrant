@@ -406,7 +406,6 @@ func (self *ResMan) OnStatusUpdate(driver *mesos.SchedulerDriver, status mesos.T
 
 	self.cmdCh <- cmd
 	<-cmd.wait
-
 }
 
 func (self *ResMan) OnError(driver *mesos.SchedulerDriver, err string) {
@@ -420,7 +419,6 @@ func (self *ResMan) OnError(driver *mesos.SchedulerDriver, err string) {
 
 	self.cmdCh <- cmd
 	<-cmd.wait
-
 }
 
 func (self *ResMan) OnDisconnected(driver *mesos.SchedulerDriver) {
