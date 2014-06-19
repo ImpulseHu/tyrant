@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -130,7 +131,11 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 	startch := make(chan struct{}, 1)
 	if len(os.Args) == 2 {
 		fname := genTyrantFile(taskId, "sh")
-		ioutil.WriteFile(fname, []byte(os.Args[1]), 0644)
+		arg, err := base64.StdEncoding.DecodeString(os.Args[1])
+		if err != nil {
+			log.Error(err, arg)
+		}
+		ioutil.WriteFile(fname, arg, 0644)
 		cmd := exec.Command("/bin/sh", fname)
 		go func() {
 			defer func() {
@@ -157,6 +162,7 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 			}
 		}()
 	} else {
+		log.Debug("argc", len(os.Args), os.Args)
 		log.Debug("send finish state")
 		self.sendStatusUpdate(taskId, mesos.TaskState_TASK_FINISHED, "Go task is done!")
 		time.Sleep(10 * time.Second)

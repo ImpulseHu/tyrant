@@ -1,6 +1,7 @@
 package mesosrel
 
 import (
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"strconv"
@@ -329,7 +330,9 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		job := t.job
 		executor := &mesos.ExecutorInfo{
 			Command: &mesos.CommandInfo{
-				Value: proto.String(job.Executor + ` "` + job.ExecutorFlags + `"`),
+				//Value: proto.String(job.Executor + ` "` + job.ExecutorFlags + `"`),
+				Value: proto.String(fmt.Sprintf(`%s "%s"`, job.Executor,
+					base64.StdEncoding.EncodeToString([]byte(job.ExecutorFlags)))),
 			},
 			Name:   proto.String("shell executor (Go)"),
 			Source: proto.String("go_test"),
