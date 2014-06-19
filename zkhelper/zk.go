@@ -757,7 +757,7 @@ func (ze *ZElector) RunTask(task ElectorTask) error {
 	waitForEvent:
 		select {
 		case <-ze.interrupted:
-			log.Infof("election interrupted - stop child process")
+			log.Warning("election interrupted - stop child process")
 			task.Stop()
 			// Once the process dies from the signal, this will all tear down.
 			goto waitForEvent
