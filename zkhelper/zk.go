@@ -50,7 +50,11 @@ func IsDirectory(aclv []zookeeper.ACL) bool {
 }
 
 func ZkErrorEqual(a, b error) bool {
-	return a.Error() == b.Error()
+	if a != nil && b != nil {
+		return a.Error() == b.Error()
+	}
+
+	return a == b
 }
 
 // Create a path and any pieces required, think mkdir -p.
