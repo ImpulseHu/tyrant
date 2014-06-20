@@ -48,6 +48,7 @@
 			          <th>Job Name</th>
 			          <th>Start Time</th>
 			          <th>Status</th>
+			          <th>Action</th>
 			          <th>Output</th>
 			          <th>Executor Message</th>
 			        </tr>
@@ -129,7 +130,7 @@
 		<% }  else  { %>
 			<td><span class="label label-danger"><%= status %></span> </td>
 		<% } %>
-
+		<td><a class="kill-btn" href="javascript:void(0)" data-taskid="<%= id %>"> KILL </td>
 		<% if (url) { %>
 			<td><a href="<%= url %>" target="_blank"> OUTPUT </td>
 		<% }  else  { %>

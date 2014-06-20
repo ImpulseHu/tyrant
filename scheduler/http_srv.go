@@ -150,9 +150,15 @@ func taskList(ctx *web.Context) string {
 	return responseSuccess(ctx, nil)
 }
 
+func taskKill(ctx *web.Context, id string) string {
+	log.Debug("kill task", id)
+	return "OK"
+}
+
 func (srv *Server) Serve() {
 	web.Get("/job/list", jobList)
 	web.Get("/task/list", taskList)
+	web.Get("/task/kill/(.*)", taskKill)
 	web.Get("/job/(.*)", jobGet)
 	web.Post("/job", jobNew)
 	web.Post("/job/run/(.*)", jobRun)
