@@ -42,3 +42,8 @@ type cmdMesosMasterInfoUpdate struct {
 	frameworkId mesos.FrameworkID
 	ch          chan struct{}
 }
+
+type cmdKillTask struct {
+	taskId string
+	ch     chan *pair
+}

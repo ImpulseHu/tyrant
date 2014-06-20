@@ -246,6 +246,25 @@ func (self *ResMan) OnRunJob(id string) (string, error) {
 	return "", res.a1.(error)
 }
 
+func (self *ResMan) OnKillTask(taskId string) error {
+	log.Warning("KillTask", taskId)
+	cmd := &cmdKillTask{taskId: taskId, ch: make(chan *pair, 1)}
+	self.cmdCh <- cmd
+	res := <-cmd.ch
+	if len(res.a0.(string)) > 0 {
+		return nil
+	}
+
+	return res.a1.(error)
+}
+
+func (self *ResMan) handleMesosMasterInfoUpdate(info *cmdMesosMasterInfoUpdate) {
+	self.masterInfo = info.masterInfo
+	self.driver = info.driver
+	if len(*info.frameworkId.Value) > 0 {
+		self.frameworkId = *info.frameworkId.Value
+	}
+}
 func (self *ResMan) dispatch(cmd interface{}) {
 	switch cmd.(type) {
 	case *cmdRunTask:
@@ -258,10 +277,15 @@ func (self *ResMan) dispatch(cmd interface{}) {
 		self.handleMesosStatusUpdate(cmd.(*cmdMesosStatusUpdate))
 	case *cmdMesosMasterInfoUpdate:
 		info := cmd.(*cmdMesosMasterInfoUpdate)
-		self.masterInfo = info.masterInfo
-		self.driver = info.driver
-		if len(*info.frameworkId.Value) > 0 {
-			self.frameworkId = *info.frameworkId.Value
+		self.handleMesosMasterInfoUpdate(info)
+	case *cmdKillTask:
+		info := cmd.(*cmdKillTask)
+		task := self.running.Get(info.taskId)
+		if task != nil {
+			self.driver.KillTask(&mesos.TaskID{Value: &info.taskId})
+			info.ch <- &pair{a0: "ok"}
+		} else {
+			info.ch <- &pair{a1: errors.New("task not running")}
 		}
 	}
 }
@@ -301,7 +325,6 @@ func (self *ResMan) EventLoop() {
 func (self *ResMan) getReadyTasks() []*Task {
 	var rts []*Task
 	self.ready.Each(func(key string, t *Task) bool {
-		log.Debugf("ready task:%+v", t)
 		rts = append(rts, t)
 		return true
 	})
@@ -324,7 +347,7 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 	ts []*Task) (launchCount int) {
 	cpus, mem := extraCpuMem(offer)
 	var tasks []mesos.TaskInfo
-	for i := 0; i < len(ts) && cpus > 0 && mem > 512; i++ {
+	for i := 0; i < len(ts) && cpus > CPU_UNIT && mem > MEM_UNIT; i++ {
 		t := ts[i]
 		log.Debugf("Launching task: %s\n", t.Tid)
 		job := t.job
@@ -357,8 +380,8 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 			SlaveId:  offer.SlaveId,
 			Executor: executor,
 			Resources: []*mesos.Resource{
-				mesos.ScalarResource("cpus", 1),
-				mesos.ScalarResource("mem", 512),
+				mesos.ScalarResource("cpus", CPU_UNIT),
+				mesos.ScalarResource("mem", MEM_UNIT),
 			},
 		}
 
