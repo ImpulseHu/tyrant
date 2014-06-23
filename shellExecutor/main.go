@@ -1,24 +1,32 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strconv"
 	"sync"
 	"time"
 
 	"code.google.com/p/goprotobuf/proto"
+	"github.com/ActiveState/tail"
 	log "github.com/ngaut/logging"
 	"mesos.apache.org/mesos"
 )
+
+type contex struct {
+	cmd        *exec.Cmd
+	statusFile *tail.Tail
+}
 
 type ShellExecutor struct {
 	lock    sync.Mutex
 	pwd     string
 	finish  chan string
 	driver  *mesos.ExecutorDriver
-	process map[string]*exec.Cmd //taskid-pid
+	process map[string]*contex //taskid-pid
 }
 
 func (self *ShellExecutor) OnRegister(
@@ -31,7 +39,6 @@ func (self *ShellExecutor) OnRegister(
 }
 
 func (self *ShellExecutor) sendHeartbeat() {
-	//log.Debug("send heartbeat")
 	for taskId, _ := range self.process {
 		tid := taskId
 		log.Debug("send heartbeat, taskId", tid)
@@ -62,15 +69,18 @@ func (self *ShellExecutor) OnKillTask(driver *mesos.ExecutorDriver, tid mesos.Ta
 	log.Warningf("OnKillTask %s", taskId)
 	self.lock.Lock()
 	defer self.lock.Unlock()
-	if cmd, ok := self.process[taskId]; ok {
-		err := cmd.Process.Kill()
+	if contex, ok := self.process[taskId]; ok {
+		log.Debug("pid", contex.cmd.Process.Pid)
+		ret, err := exec.Command("pkill", "-TERM", "-P", strconv.Itoa(contex.cmd.Process.Pid)).Output()
 		if err != nil {
 			log.Errorf("kill taskId %s failed, err:%v", taskId, err)
 		}
+		log.Debugf("kill taskId %s result %v", taskId, ret)
+		contex.statusFile.Stop()
 	}
 
-	log.Error("send kill state")
-	self.sendStatusUpdate(tid.GetValue(), mesos.TaskState_TASK_KILLED, "task killed by framework!")
+	//log.Error("send kill state")
+	//self.sendStatusUpdate(tid.GetValue(), mesos.TaskState_TASK_KILLED, "")
 }
 
 func (self *ShellExecutor) sendStatusUpdate(taskId string, state mesos.TaskState, message string) {
@@ -82,45 +92,90 @@ func (self *ShellExecutor) sendStatusUpdate(taskId string, state mesos.TaskState
 	})
 }
 
+func (self *ShellExecutor) tailf(fileName string, taskId string) *tail.Tail {
+	t, err := tail.TailFile(fileName, tail.Config{Follow: true, ReOpen: true})
+	if err != nil {
+		log.Fatal(err)
+		return nil
+	}
+
+	go func() {
+		for line := range t.Lines {
+			fmt.Println(line.Text)
+			self.sendStatusUpdate(taskId, mesos.TaskState_TASK_RUNNING, line.Text)
+		}
+	}()
+
+	return t
+}
+
+func touch(path string) {
+	ioutil.WriteFile(path, nil, 0644)
+}
+
+func genTyrantFile(name, ext string) string {
+	fname := "tyrant_" + name + "." + ext
+
+	return fname
+}
+
 func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo mesos.TaskInfo) {
-	fmt.Println("Launch task:", taskInfo.TaskId.GetValue())
+	taskId := taskInfo.TaskId.GetValue()
+	fmt.Println("Launch task:", taskId)
 	log.Debug("send running state")
-	self.sendStatusUpdate(taskInfo.TaskId.GetValue(), mesos.TaskState_TASK_RUNNING, "task is running!")
+	self.sendStatusUpdate(taskId, mesos.TaskState_TASK_RUNNING, "task is running!")
+	eventFile := genTyrantFile(taskId, "event")
+	touch(eventFile)
+	os.Setenv("TyrantStatusFile", eventFile)
+	f := self.tailf(eventFile, taskId)
 
 	log.Debugf("%+v", os.Args)
 	startch := make(chan struct{}, 1)
 	if len(os.Args) == 2 {
-		fname := taskInfo.TaskId.GetValue()
-		ioutil.WriteFile(fname, []byte(os.Args[1]), 0644)
+		fname := genTyrantFile(taskId, "sh")
+		arg, err := base64.StdEncoding.DecodeString(os.Args[1])
+		if err != nil {
+			log.Error(err, arg)
+		}
+		ioutil.WriteFile(fname, arg, 0644)
 		cmd := exec.Command("/bin/sh", fname)
 		go func() {
+			var err error
 			defer func() {
-				self.finish <- taskInfo.TaskId.GetValue()
-				log.Debug("send finish state")
-				self.sendStatusUpdate(taskInfo.TaskId.GetValue(), mesos.TaskState_TASK_FINISHED, "Go task is done!")
-				time.Sleep(10 * time.Second)
+				s := mesos.TaskState_TASK_FINISHED
+				if err != nil {
+					s = mesos.TaskState_TASK_FAILED
+				}
+				self.finish <- taskId
+				log.Debug("send taskend state")
+				self.sendStatusUpdate(taskId, s, "")
+				f.Stop()
+				time.Sleep(3 * time.Second)
 				driver.Stop()
 			}()
 
 			self.lock.Lock()
-			self.process[taskInfo.TaskId.GetValue()] = cmd
+			self.process[taskId] = &contex{cmd: cmd, statusFile: f}
 			self.lock.Unlock()
 			startch <- struct{}{}
-			out, err := cmd.Output()
-
+			err = cmd.Start()
 			if err != nil {
-				log.Error(err.Error())
-			} else {
-				fmt.Println(string(out))
-				//	log.Debug(string(out))
+				log.Warning(err)
+				return
+			}
+			log.Debug("pid", cmd.Process.Pid)
+			err = cmd.Wait()
+			if err != nil {
+				log.Warning(err)
+				return
 			}
 		}()
 	} else {
+		log.Debug("argc", len(os.Args), os.Args)
 		log.Debug("send finish state")
-		self.sendStatusUpdate(taskInfo.TaskId.GetValue(), mesos.TaskState_TASK_FINISHED, "Go task is done!")
+		self.sendStatusUpdate(taskId, mesos.TaskState_TASK_FINISHED, "Go task is done!")
 		time.Sleep(10 * time.Second)
 		driver.Stop()
-
 	}
 	<-startch
 }
@@ -138,13 +193,14 @@ func (self *ShellExecutor) OnDisconnected(driver *mesos.ExecutorDriver) {
 }
 
 func main() {
+	log.SetHighlighting(false)
 	pwd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	se := &ShellExecutor{pwd: pwd, finish: make(chan string),
-		process: make(map[string]*exec.Cmd)}
+		process: make(map[string]*contex)}
 	driver := mesos.ExecutorDriver{
 		Executor: &mesos.Executor{
 			Registered:   se.OnRegister,

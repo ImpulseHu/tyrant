@@ -1,11 +1,13 @@
 package mesosrel
 
 import (
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"strconv"
 	"time"
 
+	"github.com/juju/errors"
 	log "github.com/ngaut/logging"
 
 	"code.google.com/p/goprotobuf/proto"
@@ -30,20 +32,9 @@ type mesosDriver struct {
 	wait   chan struct{}
 }
 
-type cmdMesosOffers struct {
-	mesosDriver
-	offers []mesos.Offer
-}
-
-type cmdMesosError struct {
-	mesosDriver
-	err string
-}
-
-type cmdMesosStatusUpdate struct {
-	mesosDriver
-	status mesos.TaskStatus
-}
+var (
+	failoverTimeout = flag.Float64("failoverTimeout", 60, "failover timeout")
+)
 
 func NewResMan() *ResMan {
 	return &ResMan{
@@ -73,7 +64,7 @@ func (self *ResMan) addReadyTask(id string) (string, error) {
 
 	job, err := scheduler.GetJobById(id)
 	if err != nil {
-		return "", err
+		return "", errors.Trace(err)
 	}
 
 	persistentTask := &scheduler.Task{TaskId: self.genTaskId(), Status: scheduler.STATUS_READY,
@@ -81,8 +72,7 @@ func (self *ResMan) addReadyTask(id string) (string, error) {
 	log.Debugf("%+v", persistentTask)
 	err = persistentTask.Save()
 	if err != nil {
-		log.Error(err)
-		return "", err
+		return "", errors.Trace(err)
 	}
 
 	job.LastTaskId = persistentTask.TaskId
@@ -135,7 +125,7 @@ func (self *ResMan) handleMesosOffers(t *cmdMesosOffers) {
 		t.wait <- struct{}{}
 	}()
 
-	log.Debug("ResourceOffers")
+	log.Debugf("ResourceOffers %+v", offers)
 	ts := self.getReadyTasks()
 	log.Debugf("ready tasks:%+v", ts)
 	var idx, left int
@@ -165,36 +155,36 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		t.wait <- struct{}{}
 	}()
 
+	taskId := status.TaskId.GetValue()
+	log.Debugf("Received task %+v status: %+v", taskId, status)
+	currentTask := self.running.Get(taskId)
+	if currentTask == nil {
+		task, err := scheduler.GetTaskByTaskId(taskId)
+		if err != nil {
+			return
+		}
+		job, err := scheduler.GetJobByName(task.JobName)
+		if err != nil {
+			return
+		}
+		currentTask = &Task{Tid: task.TaskId, job: job, SlaveId: status.SlaveId.GetValue(), state: taskRuning}
+		self.running.Add(currentTask.Tid, currentTask) //add this alone task to runing queue
+	}
+
 	pwd := string(status.Data)
-	taskId := *status.TaskId
-	id := *taskId.Value
-	log.Debugf("Received task %+v status: %+v", id, status)
-	tk := self.running.Get(id)
-	if tk == nil {
-		return
+	if len(pwd) > 0 && len(currentTask.Pwd) == 0 {
+		currentTask.Pwd = pwd
 	}
 
-	//todo:check database and add this task to running queue
+	currentTask.LastUpdate = time.Now()
 
-	if len(pwd) > 0 && len(tk.Pwd) == 0 {
-		tk.Pwd = pwd
-	}
-
-	tk.LastUpdate = time.Now()
-
-	persistentTask, err := scheduler.GetTaskByTaskId(id)
-	if err != nil {
-		log.Error(err)
-	}
-
-	//todo: update in storage
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED:
-		tk.job.LastSuccessTs = time.Now().Unix()
-		self.removeRunningTask(id)
+		currentTask.job.LastSuccessTs = time.Now().Unix()
+		self.removeRunningTask(taskId)
 	case mesos.TaskState_TASK_FAILED, mesos.TaskState_TASK_KILLED, mesos.TaskState_TASK_LOST:
-		tk.job.LastErrTs = time.Now().Unix()
-		self.removeRunningTask(id)
+		currentTask.job.LastErrTs = time.Now().Unix()
+		self.removeRunningTask(taskId)
 	case mesos.TaskState_TASK_STAGING:
 		//todo: update something
 	case mesos.TaskState_TASK_STARTING:
@@ -205,27 +195,43 @@ func (self *ResMan) handleMesosStatusUpdate(t *cmdMesosStatusUpdate) {
 		log.Fatalf("should never happend %+v", status.State)
 	}
 
-	if persistentTask != nil {
-		var url string
-		if len(tk.Pwd) > 0 {
-			url = fmt.Sprintf("http://%v:%v/#/slaves/%s/browse?path=%s",
-				Inet_itoa(self.masterInfo.GetIp()), self.masterInfo.GetPort(), tk.SalveId, tk.Pwd)
-		} else {
-			url = fmt.Sprintf("http://%v:%v/#/frameworks/%s", Inet_itoa(self.masterInfo.GetIp()),
-				self.masterInfo.GetPort(), self.frameworkId)
-		}
-		persistentTask.Status = (*status.State).String()
-		if len(status.GetMessage()) > 0 {
-			persistentTask.Message = status.GetMessage()
-		}
-		persistentTask.Url = url
-		tk.job.LastStatus = persistentTask.Status
-		tk.job.Save()
-		persistentTask.UpdateTs = time.Now().Unix()
-		persistentTask.Save()
-		tk.job.SendNotify(persistentTask)
-		log.Debugf("persistentTask:%+v", persistentTask)
+	persistentTask, err := scheduler.GetTaskByTaskId(taskId)
+	if err != nil {
+		log.Error(err)
 	}
+
+	self.saveTaskStatus(persistentTask, status, currentTask)
+}
+
+func (self *ResMan) saveTaskStatus(persistentTask *scheduler.Task, status mesos.TaskStatus, currentTask *Task) {
+	if persistentTask == nil {
+		return
+	}
+
+	var url string
+	if len(currentTask.Pwd) > 0 {
+		url = fmt.Sprintf("http://%v:%v/#/slaves/%s/browse?path=%s",
+			Inet_itoa(self.masterInfo.GetIp()), self.masterInfo.GetPort(), currentTask.SlaveId, currentTask.Pwd)
+	} else {
+		url = fmt.Sprintf("http://%v:%v/#/frameworks/%s", Inet_itoa(self.masterInfo.GetIp()),
+			self.masterInfo.GetPort(), self.frameworkId)
+	}
+	persistentTask.Status = (*status.State).String()
+	if len(status.GetMessage()) > 0 {
+		persistentTask.Message = status.GetMessage()
+	}
+	persistentTask.Url = url
+	currentTask.job.LastStatus = persistentTask.Status
+	currentTask.job.Save()
+	persistentTask.UpdateTs = time.Now().Unix()
+	persistentTask.Save()
+	switch *status.State {
+	case mesos.TaskState_TASK_FINISHED, mesos.TaskState_TASK_FAILED,
+		mesos.TaskState_TASK_KILLED, mesos.TaskState_TASK_LOST:
+		currentTask.job.SendNotify(persistentTask)
+	}
+
+	log.Debugf("persistentTask:%+v", persistentTask)
 }
 
 func (self *ResMan) OnRunJob(id string) (string, error) {
@@ -240,26 +246,46 @@ func (self *ResMan) OnRunJob(id string) (string, error) {
 	return "", res.a1.(error)
 }
 
+func (self *ResMan) OnKillTask(taskId string) error {
+	log.Warning("KillTask", taskId)
+	cmd := &cmdKillTask{taskId: taskId, ch: make(chan *pair, 1)}
+	self.cmdCh <- cmd
+	res := <-cmd.ch
+	if len(res.a0.(string)) > 0 {
+		return nil
+	}
+
+	return res.a1.(error)
+}
+
+func (self *ResMan) handleMesosMasterInfoUpdate(info *cmdMesosMasterInfoUpdate) {
+	self.masterInfo = info.masterInfo
+	self.driver = info.driver
+	if len(*info.frameworkId.Value) > 0 {
+		self.frameworkId = *info.frameworkId.Value
+	}
+}
 func (self *ResMan) dispatch(cmd interface{}) {
 	switch cmd.(type) {
 	case *cmdRunTask:
-		t := cmd.(*cmdRunTask)
-		self.handleAddRunTask(t)
+		self.handleAddRunTask(cmd.(*cmdRunTask))
 	case *cmdMesosError:
-		t := cmd.(*cmdMesosError)
-		self.handleMesosError(t)
+		self.handleMesosError(cmd.(*cmdMesosError))
 	case *cmdMesosOffers:
-		t := cmd.(*cmdMesosOffers)
-		self.handleMesosOffers(t)
+		self.handleMesosOffers(cmd.(*cmdMesosOffers))
 	case *cmdMesosStatusUpdate:
-		t := cmd.(*cmdMesosStatusUpdate)
-		self.handleMesosStatusUpdate(t)
+		self.handleMesosStatusUpdate(cmd.(*cmdMesosStatusUpdate))
 	case *cmdMesosMasterInfoUpdate:
 		info := cmd.(*cmdMesosMasterInfoUpdate)
-		self.masterInfo = info.masterInfo
-		self.driver = info.driver
-		if len(*info.frameworkId.Value) > 0 {
-			self.frameworkId = *info.frameworkId.Value
+		self.handleMesosMasterInfoUpdate(info)
+	case *cmdKillTask:
+		info := cmd.(*cmdKillTask)
+		task := self.running.Get(info.taskId)
+		if task != nil {
+			self.driver.KillTask(&mesos.TaskID{Value: &info.taskId})
+			info.ch <- &pair{a0: "ok"}
+		} else {
+			info.ch <- &pair{a1: errors.New("task not running")}
 		}
 	}
 }
@@ -299,7 +325,6 @@ func (self *ResMan) EventLoop() {
 func (self *ResMan) getReadyTasks() []*Task {
 	var rts []*Task
 	self.ready.Each(func(key string, t *Task) bool {
-		log.Debugf("ready task:%+v", t)
 		rts = append(rts, t)
 		return true
 	})
@@ -307,21 +332,6 @@ func (self *ResMan) getReadyTasks() []*Task {
 	log.Debugf("ready tasks: %+v", rts)
 
 	return rts
-}
-
-func extraCpuMem(offer mesos.Offer) (int, int) {
-	var cpus, mem int
-	for _, r := range offer.Resources {
-		if r.GetName() == "cpus" && r.GetType() == mesos.Value_SCALAR {
-			cpus += int(r.GetScalar().GetValue())
-		}
-
-		if r.GetName() == "mem" && r.GetType() == mesos.Value_SCALAR {
-			mem += int(r.GetScalar().GetValue())
-		}
-	}
-
-	return cpus, mem
 }
 
 func (self *ResMan) genExtorId(taskId string) string {
@@ -337,20 +347,20 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 	ts []*Task) (launchCount int) {
 	cpus, mem := extraCpuMem(offer)
 	var tasks []mesos.TaskInfo
-	for i := 0; i < len(ts) && cpus > 0 && mem > 512; i++ {
+	for i := 0; i < len(ts) && cpus > CPU_UNIT && mem > MEM_UNIT; i++ {
 		t := ts[i]
 		log.Debugf("Launching task: %s\n", t.Tid)
 		job := t.job
 		executor := &mesos.ExecutorInfo{
-			ExecutorId: &mesos.ExecutorID{Value: proto.String("default")},
 			Command: &mesos.CommandInfo{
-				Value: proto.String(""),
+				//Value: proto.String(job.Executor + ` "` + job.ExecutorFlags + `"`),
+				Value: proto.String(fmt.Sprintf(`%s "%s"`, job.Executor,
+					base64.StdEncoding.EncodeToString([]byte(job.ExecutorFlags)))),
 			},
 			Name:   proto.String("shell executor (Go)"),
 			Source: proto.String("go_test"),
 		}
 
-		executor.Command.Value = proto.String(job.Executor + ` "` + job.ExecutorFlags + `"`)
 		executorId := self.genExtorId(t.Tid)
 		executor.ExecutorId = &mesos.ExecutorID{Value: proto.String(executorId)}
 		log.Debug(*executor.Command.Value)
@@ -370,8 +380,8 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 			SlaveId:  offer.SlaveId,
 			Executor: executor,
 			Resources: []*mesos.Resource{
-				mesos.ScalarResource("cpus", 1),
-				mesos.ScalarResource("mem", 512),
+				mesos.ScalarResource("cpus", CPU_UNIT),
+				mesos.ScalarResource("mem", MEM_UNIT),
 			},
 		}
 
@@ -379,14 +389,12 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		t.state = taskRuning
 
 		t.LastUpdate = time.Now()
-		t.SalveId = offer.GetSlaveId().GetValue()
-		t.OfferId = offer.GetId().GetValue()
-		log.Warning(t.OfferId)
-		t.ExecutorId = executorId
+		t.SlaveId = offer.GetSlaveId().GetValue()
 		self.running.Add(t.Tid, t)
 		log.Debugf("remove %+v from ready queue", t.Tid)
 		self.ready.Del(t.Tid)
-
+		cpus -= CPU_UNIT
+		mem -= MEM_UNIT
 	}
 
 	if len(tasks) == 0 {
@@ -424,7 +432,6 @@ func (self *ResMan) OnStatusUpdate(driver *mesos.SchedulerDriver, status mesos.T
 
 	self.cmdCh <- cmd
 	<-cmd.wait
-
 }
 
 func (self *ResMan) OnError(driver *mesos.SchedulerDriver, err string) {
@@ -438,7 +445,6 @@ func (self *ResMan) OnError(driver *mesos.SchedulerDriver, err string) {
 
 	self.cmdCh <- cmd
 	<-cmd.wait
-
 }
 
 func (self *ResMan) OnDisconnected(driver *mesos.SchedulerDriver) {
@@ -457,17 +463,13 @@ func (self *ResMan) OnReregister(driver *mesos.SchedulerDriver, mi mesos.MasterI
 	self.cmdCh <- cmd
 }
 
-func (self *ResMan) Run() {
-	master := flag.String("master", "localhost:5050", "Location of leading Mesos master")
-	flag.Parse()
-	frameworkIdStr := "tyrant"
+func (self *ResMan) Run(master string) {
+	frameworkIdStr := FRAMEWORK_ID
 	frameworkId := &mesos.FrameworkID{Value: &frameworkIdStr}
-	failoverTimeout := flag.Float64("failoverTimeout", 60, "failover timeout")
-
 	driver := mesos.SchedulerDriver{
-		Master: *master,
+		Master: master,
 		Framework: mesos.FrameworkInfo{
-			Name:            proto.String("GoFramework"),
+			Name:            proto.String("TyrantFramework"),
 			User:            proto.String(""),
 			FailoverTimeout: failoverTimeout,
 			Id:              frameworkId,

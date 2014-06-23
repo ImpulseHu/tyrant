@@ -27,24 +27,24 @@ func NewDbMap() *gorp.DbMap {
 	}
 	var dbmap *gorp.DbMap
 	if dbType == "mysql" {
-		dbmap = &gorp.DbMap{Db: db, Dialect: gorp.MySQLDialect{}}
+		dbmap = &gorp.DbMap{Db: db, Dialect: gorp.MySQLDialect{"InnoDB", "UTF8"}}
 	} else {
 		dbmap = &gorp.DbMap{Db: db, Dialect: gorp.SqliteDialect{}}
 	}
 
 	tbl := dbmap.AddTableWithName(Job{}, "jobs").SetKeys(true, "Id")
-	tbl.ColMap("name").SetMaxSize(512).SetUnique(true)
-	tbl.ColMap("executor").SetMaxSize(4096)
-	tbl.ColMap("executor_flags").SetMaxSize(4096)
-	tbl.ColMap("uris").SetMaxSize(2048)
+	tbl.ColMap("name").SetMaxSize(255).SetUnique(true)
+	tbl.ColMap("executor").SetMaxSize(255)
+	tbl.ColMap("executor_flags").SetMaxSize(255)
+	tbl.ColMap("uris").SetMaxSize(255)
 
 	tbl = dbmap.AddTableWithName(Task{}, "tasks").SetKeys(true, "Id")
-	tbl.ColMap("id").SetMaxSize(128).SetUnique(true)
+	tbl.ColMap("id").SetMaxSize(255).SetUnique(true)
 
 	err = dbmap.CreateTablesIfNotExists()
 
 	if err != nil {
-		log.Fatal(err)
+		log.Warning(err)
 	}
 	return dbmap
 }

@@ -13,6 +13,7 @@ import (
 type Notifier interface {
 	OnRunJob(name string) (string, error) //taskId, error
 	GetStatusByTaskId(taskId string) (string, error)
+	OnKillTask(taskId string) error
 }
 
 type Server struct {
@@ -150,9 +151,21 @@ func taskList(ctx *web.Context) string {
 	return responseSuccess(ctx, nil)
 }
 
+func taskKill(ctx *web.Context, id string) string {
+	if s.notifier != nil {
+		err := s.notifier.OnKillTask(id)
+		if err != nil {
+			return err.Error()
+		}
+		return "OK"
+	}
+	return "unknown error"
+}
+
 func (srv *Server) Serve() {
 	web.Get("/job/list", jobList)
 	web.Get("/task/list", taskList)
+	web.Get("/task/kill/(.*)", taskKill)
 	web.Get("/job/(.*)", jobGet)
 	web.Post("/job", jobNew)
 	web.Post("/job/run/(.*)", jobRun)

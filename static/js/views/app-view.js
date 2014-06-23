@@ -97,6 +97,14 @@ var app = app || {};
 	app.TaskView = Backbone.View.extend({
 		tagName:  'tr',
 		template: _.template($('#task-item-template').html()),
+		events : {
+			'click .kill-btn': 'onKillClick'
+		},
+		onKillClick : function() {
+			$.get('/task/kill/' + this.model.get('id'),function(e) {
+				alert(e);
+			});
+		},
 		render: function () {
 			this.$el.html(this.template(this.model.toJSON()));
 			return this;
