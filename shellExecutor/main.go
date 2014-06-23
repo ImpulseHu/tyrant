@@ -79,8 +79,8 @@ func (self *ShellExecutor) OnKillTask(driver *mesos.ExecutorDriver, tid mesos.Ta
 		contex.statusFile.Stop()
 	}
 
-	log.Error("send kill state")
-	self.sendStatusUpdate(tid.GetValue(), mesos.TaskState_TASK_KILLED, "")
+	//log.Error("send kill state")
+	//self.sendStatusUpdate(tid.GetValue(), mesos.TaskState_TASK_KILLED, "")
 }
 
 func (self *ShellExecutor) sendStatusUpdate(taskId string, state mesos.TaskState, message string) {
@@ -140,12 +140,16 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 		ioutil.WriteFile(fname, arg, 0644)
 		cmd := exec.Command("/bin/sh", fname)
 		go func() {
+			var err error
 			defer func() {
+				s := mesos.TaskState_TASK_FINISHED
+				if err != nil {
+					s = mesos.TaskState_TASK_FAILED
+				}
 				self.finish <- taskId
-				log.Debug("send finish state")
-				self.sendStatusUpdate(taskId, mesos.TaskState_TASK_FINISHED, "")
+				log.Debug("send taskend state")
+				self.sendStatusUpdate(taskId, s, "")
 				f.Stop()
-				cmd.Process.Kill()
 				time.Sleep(3 * time.Second)
 				driver.Stop()
 			}()
@@ -154,13 +158,13 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 			self.process[taskId] = &contex{cmd: cmd, statusFile: f}
 			self.lock.Unlock()
 			startch <- struct{}{}
-			err := cmd.Start()
+			err = cmd.Start()
 			if err != nil {
 				log.Warning(err)
 				return
 			}
 			log.Debug("pid", cmd.Process.Pid)
-			cmd.Wait()
+			err = cmd.Wait()
 			if err != nil {
 				log.Warning(err)
 				return
