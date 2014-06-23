@@ -39,7 +39,6 @@ func (self *ShellExecutor) OnRegister(
 }
 
 func (self *ShellExecutor) sendHeartbeat() {
-	//log.Debug("send heartbeat")
 	for taskId, _ := range self.process {
 		tid := taskId
 		log.Debug("send heartbeat, taskId", tid)
@@ -76,13 +75,12 @@ func (self *ShellExecutor) OnKillTask(driver *mesos.ExecutorDriver, tid mesos.Ta
 		if err != nil {
 			log.Errorf("kill taskId %s failed, err:%v", taskId, err)
 		}
-		log.Debug("kill result", ret)
+		log.Debugf("kill taskId %s result %v", taskId, ret)
 		contex.statusFile.Stop()
-		log.Debug("kill", taskId)
 	}
 
 	log.Error("send kill state")
-	self.sendStatusUpdate(tid.GetValue(), mesos.TaskState_TASK_KILLED, "task killed by framework!")
+	self.sendStatusUpdate(tid.GetValue(), mesos.TaskState_TASK_KILLED, "")
 }
 
 func (self *ShellExecutor) sendStatusUpdate(taskId string, state mesos.TaskState, message string) {
@@ -191,6 +189,7 @@ func (self *ShellExecutor) OnDisconnected(driver *mesos.ExecutorDriver) {
 }
 
 func main() {
+	log.SetHighlighting(false)
 	pwd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
