@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strconv"
 	"sync"
 	"time"
 
@@ -70,11 +71,14 @@ func (self *ShellExecutor) OnKillTask(driver *mesos.ExecutorDriver, tid mesos.Ta
 	self.lock.Lock()
 	defer self.lock.Unlock()
 	if contex, ok := self.process[taskId]; ok {
-		err := contex.cmd.Process.Kill()
+		log.Debug("pid", contex.cmd.Process.Pid)
+		ret, err := exec.Command("pkill", "-TERM", "-P", strconv.Itoa(contex.cmd.Process.Pid)).Output()
 		if err != nil {
 			log.Errorf("kill taskId %s failed, err:%v", taskId, err)
 		}
+		log.Debug("kill result", ret)
 		contex.statusFile.Stop()
+		log.Debug("kill", taskId)
 	}
 
 	log.Error("send kill state")
@@ -152,13 +156,16 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 			self.process[taskId] = &contex{cmd: cmd, statusFile: f}
 			self.lock.Unlock()
 			startch <- struct{}{}
-			out, err := cmd.Output()
-
+			err := cmd.Start()
 			if err != nil {
-				log.Error(err.Error())
-			} else {
-				fmt.Println(string(out))
-				//	log.Debug(string(out))
+				log.Warning(err)
+				return
+			}
+			log.Debug("pid", cmd.Process.Pid)
+			cmd.Wait()
+			if err != nil {
+				log.Warning(err)
+				return
 			}
 		}()
 	} else {
