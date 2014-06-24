@@ -11,6 +11,7 @@ import (
 	log "github.com/ngaut/logging"
 
 	"code.google.com/p/goprotobuf/proto"
+	"github.com/ngaut/tyrant/notify"
 	"github.com/ngaut/tyrant/scheduler"
 	"mesos.apache.org/mesos"
 )
@@ -25,6 +26,7 @@ type ResMan struct {
 	masterInfo  mesos.MasterInfo
 	frameworkId string
 	driver      *mesos.SchedulerDriver
+	notifier    *notify.Notifier
 }
 
 type mesosDriver struct {
@@ -41,8 +43,9 @@ func NewResMan() *ResMan {
 		ready:      NewTaskQueue(),
 		running:    NewTaskQueue(),
 		exit:       make(chan bool),
-		cmdCh:      make(chan interface{}, 1000),
+		cmdCh:      make(chan interface{}, 10),
 		timeoutSec: 30,
+		notifier:   notify.NewNotifier(),
 	}
 }
 
@@ -228,7 +231,9 @@ func (self *ResMan) saveTaskStatus(persistentTask *scheduler.Task, status mesos.
 	switch *status.State {
 	case mesos.TaskState_TASK_FINISHED, mesos.TaskState_TASK_FAILED,
 		mesos.TaskState_TASK_KILLED, mesos.TaskState_TASK_LOST:
-		currentTask.job.SendNotify(persistentTask)
+		self.notifier.SendNotify(currentTask.job, persistentTask, true)
+	default:
+		self.notifier.SendNotify(currentTask.job, persistentTask, false)
 	}
 
 	log.Debugf("persistentTask:%+v", persistentTask)

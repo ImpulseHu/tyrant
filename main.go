@@ -5,6 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/c4pt0r/cfg"
 	log "github.com/ngaut/logging"
 	"github.com/ngaut/tyrant/scheduler"
@@ -59,6 +62,11 @@ func (self *LeaderTask) Run() error {
 	go func() {
 		scheduler.CheckAutoRunJobs(resScheduler)
 	}()
+
+	go func() {
+		http.ListenAndServe(":9091", nil)
+	}()
+
 	s := scheduler.NewServer(":9090", resScheduler)
 	s.Serve()
 

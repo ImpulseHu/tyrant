@@ -1,9 +1,6 @@
 package scheduler
 
 import (
-	"bytes"
-	"encoding/json"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -63,7 +60,7 @@ func GetScheduledJobList() []Job {
 	var jobs []Job
 	_, err := sharedDbMap.Select(&jobs, "select * from jobs where schedule <> ''")
 	if err != nil {
-		log.Debug(err.Error())
+		log.Warning(err.Error())
 		return nil
 	}
 	return jobs
@@ -164,25 +161,4 @@ func (j *Job) Remove() error {
 	}
 	j.Id = -1
 	return nil
-}
-
-func (j *Job) SendNotify(t *Task) {
-	go func() {
-		log.Info("Send Notify for Job", j, t)
-		if len(j.WebHookUrl) == 0 {
-			return
-		}
-		buf, err := json.Marshal(struct {
-			Job  *Job  `json:"job"`
-			Task *Task `json:"task"`
-		}{j, t})
-		if err != nil {
-			log.Debug(err.Error(), j, t)
-		}
-		body := bytes.NewBuffer(buf)
-		_, err = http.Post(j.WebHookUrl, "application/json", body)
-		if err != nil {
-			log.Debug(err.Error(), j, t)
-		}
-	}()
 }
