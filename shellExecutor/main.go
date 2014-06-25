@@ -139,7 +139,7 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 		}
 		ioutil.WriteFile(fname, arg, 0644)
 		cmd := exec.Command("/bin/sh", fname)
-		go func() {
+		go func(taskId string) {
 			var err error
 			defer func() {
 				s := mesos.TaskState_TASK_FINISHED
@@ -158,6 +158,9 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 			self.process[taskId] = &contex{cmd: cmd, statusFile: f}
 			self.lock.Unlock()
 			startch <- struct{}{}
+			cmd.Stderr = os.Stderr
+			cmd.Stdout = os.Stdout
+
 			err = cmd.Start()
 			if err != nil {
 				log.Warning(err)
@@ -169,7 +172,7 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 				log.Warning(err)
 				return
 			}
-		}()
+		}(taskId)
 	} else {
 		log.Debug("argc", len(os.Args), os.Args)
 		log.Debug("send finish state")
