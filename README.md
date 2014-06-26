@@ -10,7 +10,7 @@ works on mesos 0.18.2+
 		high availability by master and standby
 		very clean web ui
 		restful api support
-		no need to write executor, just write shell scripts
+		no need to write mesos executor, just write shell scripts
 		killing tasks
 		realtime task status
 		support webhook 
@@ -65,5 +65,5 @@ works on mesos 0.18.2+
 	
 ## LICENSE
 
-tyrant is distributed under the terms of the MIT License. 
+	Tyrant is distributed under the terms of the MIT License. 
 
