@@ -17,10 +17,14 @@ works on mesos 0.18.2+
 
 
 ## usage:
+		1. start mesos master and slaves. and zookeeper
+		   zkServer.sh start
+		   mesos-master.sh --zk=zk://host:port/mesos
+		   mesos-slave.sh --master=zk://host:port/mesos
 
-		1. ./tyrant --master=zk://ip:port/mesos
+		2. ./tyrant --master=zk://host:port/mesos
 
-		2. open browser http://localhost:9090
+		3. open browser http://localhost:9090
 
 ## api description
 		1. Create job
