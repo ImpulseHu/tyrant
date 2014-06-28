@@ -7,16 +7,16 @@ works on mesos 0.18.2+
 
 
 ## Futures:
-		high availability by master and standby
-		very clean web ui
-		restful api support
-		no need to write mesos executor, just write shell scripts
-		killing tasks
-		realtime task status
-		support webhook 
+* High availability by master and standby
+* Simple and clean web ui
+* Restful api support
+* No need to write mesos executor, just write shell scripts
+* Killing tasks
+* Realtime task status
+* Support webhook 
 
 
-## usage:
+## Usage:
 		1. start mesos master and slaves. and zookeeper
 		   zkServer.sh start
 		   mesos-master.sh --zk=zk://host:port/mesos
@@ -26,7 +26,7 @@ works on mesos 0.18.2+
 
 		3. open browser http://localhost:9090
 
-## api description
+## Api description
 		1. Create job
 			post to url: /job, body is json object
 			
@@ -49,8 +49,8 @@ works on mesos 0.18.2+
 			return:
 				task description(json format)
 				{
-				    data:taskId        //string, task id
-				    ret:				  //ret code, 0 mean ok
+				    data:taskId       	    //string, task id
+				    ret:					//ret code, 0 mean ok
 				}
 
 
