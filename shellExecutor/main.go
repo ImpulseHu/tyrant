@@ -70,8 +70,10 @@ func (self *ShellExecutor) OnKillTask(driver *mesos.ExecutorDriver, tid mesos.Ta
 	self.lock.Lock()
 	defer self.lock.Unlock()
 	if contex, ok := self.process[taskId]; ok {
+		ret, _ := exec.Command("pgrep", "-P", strconv.Itoa(contex.cmd.Process.Pid)).Output()
+		log.Debug("children process", string(ret))
 		log.Debug("pid", contex.cmd.Process.Pid)
-		ret, err := exec.Command("pkill", "-TERM", "-P", strconv.Itoa(contex.cmd.Process.Pid)).Output()
+		ret, err := exec.Command("pkill", "-P", strconv.Itoa(contex.cmd.Process.Pid)).Output()
 		if err != nil {
 			log.Errorf("kill taskId %s failed, err:%v", taskId, err)
 		}
@@ -123,7 +125,7 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 	taskId := taskInfo.TaskId.GetValue()
 	fmt.Println("Launch task:", taskId)
 	log.Debug("send running state")
-	self.sendStatusUpdate(taskId, mesos.TaskState_TASK_RUNNING, "task is running!")
+	self.sendStatusUpdate(taskId, mesos.TaskState_TASK_RUNNING, "")
 	eventFile := genTyrantFile(taskId, "event")
 	touch(eventFile)
 	os.Setenv("TyrantStatusFile", eventFile)
@@ -176,7 +178,7 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 	} else {
 		log.Debug("argc", len(os.Args), os.Args)
 		log.Debug("send finish state")
-		self.sendStatusUpdate(taskId, mesos.TaskState_TASK_FINISHED, "Go task is done!")
+		self.sendStatusUpdate(taskId, mesos.TaskState_TASK_FINISHED, "")
 		time.Sleep(10 * time.Second)
 		driver.Stop()
 	}

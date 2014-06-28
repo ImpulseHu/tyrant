@@ -11,13 +11,11 @@ import (
 // Job define
 type Job struct {
 	Id            int64  `db:"id" json:"id"`
-	Name          string `db:"name" json:"name"` // 512, unique
-	Epsilon       string `db:"epsilon" json:"epsilon"`
+	Name          string `db:"name" json:"name"`                     // 512, unique
 	Executor      string `db:"executor" json:"executor"`             // 4096
 	ExecutorFlags string `db:"executor_flags" json:"executor_flags"` // 4096
 	Retries       int    `db:"retries" json:"retries"`
 	Owner         string `db:"owner" json:"owner"`
-	Async         bool   `db:"async" json:"async"`
 	SuccessCnt    int    `db:"success_cnt" json:"success_cnt"`
 	ErrCnt        int    `db:"error_cnt" json:"error_cnt"`
 	CreateTs      int64  `db:"create_ts" json:"create_ts"`
@@ -29,7 +27,7 @@ type Job struct {
 	Mem           int    `db:"mem" json:"mem"`
 	Disk          int64  `db:"disk" json:"disk"`
 	Disabled      bool   `db:"disabled" json:"disabled"`
-	Uris          string `db:"uris" json:"uris"` // 2048
+	Uris          string `db:"uris" json:"uris"` // 2048, using comma to split
 	Schedule      string `db:"schedule" json:"schedule"`
 	WebHookUrl    string `db:"hook" json:"hook"`
 }

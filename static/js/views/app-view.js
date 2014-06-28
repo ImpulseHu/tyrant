@@ -135,7 +135,8 @@ var app = app || {};
 					console.log(e);
 				},
 				success: function(result) {
-					alert("OK" + " " + result);
+					var obj = JSON.parse(result);
+          				alert("taskId: " + obj['data'])
 				}
 			});
 		},

@@ -61,6 +61,7 @@ func jobList(ctx *web.Context) string {
 	if jobs != nil && len(jobs) > 0 {
 		return responseSuccess(ctx, jobs)
 	}
+
 	return responseSuccess(ctx, nil)
 }
 
@@ -81,9 +82,9 @@ func jobUpdate(ctx *web.Context, id string) string {
 			return responseError(ctx, -4, err.Error())
 		}
 		return responseSuccess(ctx, job)
-	} else {
-		return responseError(ctx, -5, "no such job")
 	}
+
+	return responseError(ctx, -5, "no such job")
 }
 
 func jobNew(ctx *web.Context) string {
@@ -101,6 +102,7 @@ func jobNew(ctx *web.Context) string {
 	if err != nil {
 		return responseError(ctx, -3, err.Error())
 	}
+
 	return responseSuccess(ctx, job)
 }
 
@@ -113,6 +115,7 @@ func jobRemove(ctx *web.Context, id string) string {
 		}
 		return responseSuccess(ctx, j)
 	}
+
 	return responseError(ctx, -3, "no such job")
 }
 
@@ -121,6 +124,7 @@ func jobGet(ctx *web.Context, id string) string {
 	if err != nil {
 		return responseError(ctx, -1, err.Error())
 	}
+
 	return responseSuccess(ctx, j)
 }
 
@@ -139,6 +143,7 @@ func jobRun(ctx *web.Context, id string) string {
 
 		return responseSuccess(ctx, taskId)
 	}
+
 	log.Debug("Notifier not found")
 	return responseError(ctx, -3, "notifier not found")
 }
@@ -148,6 +153,7 @@ func taskList(ctx *web.Context) string {
 	if tasks != nil && len(tasks) > 0 {
 		return responseSuccess(ctx, tasks)
 	}
+
 	return responseSuccess(ctx, nil)
 }
 
@@ -159,7 +165,8 @@ func taskKill(ctx *web.Context, id string) string {
 		}
 		return "OK"
 	}
-	return "unknown error"
+
+	return "error:notifier not registered"
 }
 
 func (srv *Server) Serve() {
