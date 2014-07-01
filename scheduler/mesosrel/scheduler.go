@@ -11,9 +11,9 @@ import (
 	log "github.com/ngaut/logging"
 
 	"code.google.com/p/goprotobuf/proto"
+	"github.com/mesosphere/mesos-go/mesos"
 	"github.com/ngaut/tyrant/notify"
 	"github.com/ngaut/tyrant/scheduler"
-	"mesos.apache.org/mesos"
 )
 
 type ResMan struct {

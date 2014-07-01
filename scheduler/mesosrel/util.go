@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"mesos.apache.org/mesos"
+	"github.com/mesosphere/mesos-go/mesos"
 )
 
 func splitTrim(s string) []string {
