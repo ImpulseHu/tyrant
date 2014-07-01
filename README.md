@@ -6,7 +6,7 @@ works on mesos 0.18.2+
 [![Coverage Status](https://coveralls.io/repos/ngaut/tyrant/badge.png?branch=master)](https://coveralls.io/r/ngaut/tyrant)
 
 
-## Futures:
+## Features:
 * High availability by master and standby
 * Simple and clean web ui
 * Restful api support

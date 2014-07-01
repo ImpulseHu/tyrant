@@ -330,6 +330,7 @@ func (self *ResMan) EventLoop() {
 func (self *ResMan) getReadyTasks() []*Task {
 	var rts []*Task
 	self.ready.Each(func(key string, t *Task) bool {
+		//todo: policy support
 		rts = append(rts, t)
 		return true
 	})
