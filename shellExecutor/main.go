@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"sync"
 	"time"
@@ -126,7 +127,11 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 	fmt.Println("Launch task:", taskId)
 	log.Debug("send running state")
 	self.sendStatusUpdate(taskId, mesos.TaskState_TASK_RUNNING, "")
-	eventFile := genTyrantFile(taskId, "event")
+	pwd, err := os.Getwd()
+	if err != nil {
+		log.Error(err)
+	}
+	eventFile := path.Join(pwd, genTyrantFile(taskId, "event"))
 	touch(eventFile)
 	os.Setenv("TyrantStatusFile", eventFile)
 	f := self.tailf(eventFile, taskId)
