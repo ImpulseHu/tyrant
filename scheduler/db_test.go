@@ -15,8 +15,7 @@ func TestDbMap(t *testing.T) {
 		os.Remove("/tmp/test.db")
 	}()
 	j := &Job{
-		Name:    "Test",
-		Epsilon: "1000",
+		Name: "Test",
 	}
 
 	j2 := Job{}

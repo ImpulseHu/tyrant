@@ -156,6 +156,7 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 				self.finish <- taskId
 				log.Debug("send taskend state")
 				self.sendStatusUpdate(taskId, s, "")
+				//todo: wait for tailf finish
 				f.Stop()
 				time.Sleep(3 * time.Second)
 				driver.Stop()
