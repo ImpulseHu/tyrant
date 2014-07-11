@@ -204,7 +204,15 @@ func (self *ShellExecutor) OnDisconnected(driver *mesos.ExecutorDriver) {
 }
 
 func main() {
+	println("executor started")
 	log.SetHighlighting(false)
+	f, err := os.Create("executor.log")
+	if err != nil {
+		println(err.Error())
+	}
+
+	log.SetOutput(f)
+	log.Warning("executor start...")
 	pwd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
