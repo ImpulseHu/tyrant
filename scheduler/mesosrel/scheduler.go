@@ -380,7 +380,7 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		executor.Command.Uris = taskUris
 
 		task := mesos.TaskInfo{
-			Name: proto.String("go-task"),
+			Name: proto.String(job.Name),
 			TaskId: &mesos.TaskID{
 				Value: proto.String(t.Tid),
 			},
