@@ -35,7 +35,8 @@ type mesosDriver struct {
 }
 
 var (
-	failoverTimeout = flag.Float64("failoverTimeout", 60, "failover timeout")
+	failoverTimeout         = flag.Float64("failoverTimeout", 60, "failover timeout")
+	refuseSeconds   float64 = 1.0
 )
 
 func NewResMan() *ResMan {
@@ -409,7 +410,8 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 
 	log.Debugf("%+v", tasks)
 
-	driver.LaunchTasks(offer.Id, tasks)
+	filters := mesos.Filters{RefuseSeconds: &refuseSeconds}
+	driver.LaunchTasks(offer.Id, tasks, filters)
 
 	return len(tasks)
 }
