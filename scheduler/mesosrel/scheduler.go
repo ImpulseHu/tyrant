@@ -11,9 +11,9 @@ import (
 	log "github.com/ngaut/logging"
 
 	"code.google.com/p/goprotobuf/proto"
+	"github.com/mesosphere/mesos-go/mesos"
 	"github.com/ngaut/tyrant/notify"
 	"github.com/ngaut/tyrant/scheduler"
-	"mesos.apache.org/mesos"
 )
 
 type ResMan struct {
@@ -35,7 +35,8 @@ type mesosDriver struct {
 }
 
 var (
-	failoverTimeout = flag.Float64("failoverTimeout", 60, "failover timeout")
+	failoverTimeout         = flag.Float64("failoverTimeout", 60, "failover timeout")
+	refuseSeconds   float64 = 1.0
 )
 
 func NewResMan() *ResMan {
@@ -330,6 +331,7 @@ func (self *ResMan) EventLoop() {
 func (self *ResMan) getReadyTasks() []*Task {
 	var rts []*Task
 	self.ready.Each(func(key string, t *Task) bool {
+		//todo: policy support
 		rts = append(rts, t)
 		return true
 	})
@@ -378,7 +380,7 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 		executor.Command.Uris = taskUris
 
 		task := mesos.TaskInfo{
-			Name: proto.String("go-task"),
+			Name: proto.String(job.Name),
 			TaskId: &mesos.TaskID{
 				Value: proto.String(t.Tid),
 			},
@@ -408,7 +410,8 @@ func (self *ResMan) runTaskUsingOffer(driver *mesos.SchedulerDriver, offer mesos
 
 	log.Debugf("%+v", tasks)
 
-	driver.LaunchTasks(offer.Id, tasks)
+	filters := mesos.Filters{RefuseSeconds: &refuseSeconds}
+	driver.LaunchTasks(offer.Id, tasks, filters)
 
 	return len(tasks)
 }

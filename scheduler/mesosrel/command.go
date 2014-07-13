@@ -1,7 +1,7 @@
 package mesosrel
 
 import (
-	"mesos.apache.org/mesos"
+	"github.com/mesosphere/mesos-go/mesos"
 )
 
 const (

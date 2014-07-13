@@ -1,13 +1,19 @@
 package main
 
 import (
+	"flag"
 	"net/http"
-	"os"
 
 	log "github.com/ngaut/logging"
 )
 
+var (
+	addr = flag.String("addr", ":80", "listen address")
+	path = flag.String("path", "./", "root path")
+)
+
 func main() {
-	http.Handle("/", http.FileServer(http.Dir(os.Args[1])))
-	log.Error(http.ListenAndServe(":80", nil))
+	flag.Parse()
+	http.Handle("/", http.FileServer(http.Dir(*path)))
+	log.Error(http.ListenAndServe(*addr, nil))
 }
