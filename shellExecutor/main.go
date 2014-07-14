@@ -13,8 +13,8 @@ import (
 
 	"code.google.com/p/goprotobuf/proto"
 	"github.com/ActiveState/tail"
+	"github.com/mesosphere/mesos-go/mesos"
 	log "github.com/ngaut/logging"
-	"mesos.apache.org/mesos"
 )
 
 type contex struct {
