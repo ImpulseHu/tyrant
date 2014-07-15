@@ -14,6 +14,7 @@ var (
 
 func main() {
 	flag.Parse()
+	log.Debug(*path)
 	http.Handle("/", http.FileServer(http.Dir(*path)))
 	log.Error(http.ListenAndServe(*addr, nil))
 }
