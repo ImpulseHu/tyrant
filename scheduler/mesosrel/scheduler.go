@@ -50,8 +50,8 @@ func NewResMan() *ResMan {
 	}
 }
 
-func (self *ResMan) OnStartReady(jid string) (string, error) {
-	t := &cmdRunTask{Id: jid, ch: make(chan *pair, 1)}
+func (self *ResMan) OnStartReady(job *scheduler.Job) (string, error) {
+	t := &cmdRunTask{job: job, ch: make(chan *pair, 1)}
 	self.cmdCh <- t
 	res := <-t.ch
 	if len(res.a0.(string)) > 0 {
@@ -61,20 +61,15 @@ func (self *ResMan) OnStartReady(jid string) (string, error) {
 	return "", res.a1.(error)
 }
 
-func (self *ResMan) addReadyTask(id string) (string, error) {
-	if self.ready.Exist(id) {
-		return "", fmt.Errorf("%s already exist: %+v", id, self.ready.Get(id))
-	}
-
-	job, err := scheduler.GetJobById(id)
-	if err != nil {
-		return "", errors.Trace(err)
+func (self *ResMan) addReadyTask(job *scheduler.Job) (string, error) {
+	if self.ready.Exist(strconv.Itoa(int(job.Id))) {
+		return "", fmt.Errorf("already exist: %+v", job)
 	}
 
 	persistentTask := &scheduler.Task{TaskId: self.genTaskId(), Status: scheduler.STATUS_READY,
 		StartTs: time.Now().Unix(), JobName: job.Name}
 	log.Debugf("%+v", persistentTask)
-	err = persistentTask.Save()
+	err := persistentTask.Save()
 	if err != nil {
 		return "", errors.Trace(err)
 	}
@@ -90,7 +85,7 @@ func (self *ResMan) addReadyTask(id string) (string, error) {
 }
 
 func (self *ResMan) handleAddRunTask(t *cmdRunTask) {
-	tid, err := self.addReadyTask(t.Id)
+	tid, err := self.addReadyTask(t.job)
 	if err != nil {
 		log.Warning(err)
 		t.ch <- &pair{a1: err}
@@ -240,9 +235,9 @@ func (self *ResMan) saveTaskStatus(persistentTask *scheduler.Task, status mesos.
 	log.Debugf("persistentTask:%+v", persistentTask)
 }
 
-func (self *ResMan) OnRunJob(id string) (string, error) {
-	log.Debug("OnRunJob", id)
-	cmd := &cmdRunTask{Id: id, ch: make(chan *pair, 1)}
+func (self *ResMan) OnRunJob(job *scheduler.Job) (string, error) {
+	log.Debug("OnRunJob", job.Id)
+	cmd := &cmdRunTask{job: job, ch: make(chan *pair, 1)}
 	self.cmdCh <- cmd
 	res := <-cmd.ch
 	if len(res.a0.(string)) > 0 {

@@ -11,7 +11,7 @@ import (
 )
 
 type Notifier interface {
-	OnRunJob(name string) (string, error) //taskId, error
+	OnRunJob(j *Job) (string, error) //taskId, error
 	GetStatusByTaskId(taskId string) (string, error)
 	OnKillTask(taskId string) error
 }
@@ -135,7 +135,7 @@ func jobRun(ctx *web.Context, id string) string {
 	}
 
 	if s.notifier != nil && j != nil {
-		taskId, err := s.notifier.OnRunJob(id)
+		taskId, err := s.notifier.OnRunJob(j)
 		if err != nil {
 			log.Debug(err.Error())
 			return responseError(ctx, -2, err.Error())
