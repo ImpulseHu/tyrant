@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	_ "net/http/pprof"
+	"strconv"
 	"time"
 
 	"github.com/hoisie/web"
@@ -92,12 +93,14 @@ func jobNew(ctx *web.Context) string {
 	if err != nil {
 		return responseError(ctx, -1, err.Error())
 	}
+
 	var job Job
 	err = json.Unmarshal(b, &job)
-	job.CreateTs = time.Now().Unix()
 	if err != nil {
 		return responseError(ctx, -2, err.Error())
 	}
+
+	job.CreateTs = time.Now().Unix()
 	err = sharedDbMap.Insert(&job)
 	if err != nil {
 		return responseError(ctx, -3, err.Error())
@@ -148,6 +151,43 @@ func jobRun(ctx *web.Context, id string) string {
 	return responseError(ctx, -3, "notifier not found")
 }
 
+func jobRunOnce(ctx *web.Context) string {
+	b, err := ioutil.ReadAll(ctx.Request.Body)
+	if err != nil {
+		return responseError(ctx, -1, err.Error())
+	}
+	var j Job
+	err = json.Unmarshal(b, &j)
+	if err != nil {
+		return responseError(ctx, -2, err.Error())
+	}
+
+	jobTpl, err := GetJobById(strconv.Itoa(int(j.Id)))
+	if err != nil {
+		return responseError(ctx, -1, err.Error())
+	}
+
+	j.Owner = jobTpl.Owner
+	j.Disk = jobTpl.Disk
+	j.Mem = jobTpl.Mem
+	j.Cpus = jobTpl.Cpus
+	j.Name = jobTpl.Name
+
+	j.CreateTs = time.Now().Unix()
+	if s.notifier != nil {
+		taskId, err := s.notifier.OnRunJob(&j)
+		if err != nil {
+			log.Debug(err.Error())
+			return responseError(ctx, -2, err.Error())
+		}
+
+		return responseSuccess(ctx, taskId)
+	}
+
+	log.Debug("Notifier not found")
+	return responseError(ctx, -3, "notifier not found")
+}
+
 func taskList(ctx *web.Context) string {
 	tasks := GetTaskList()
 	if tasks != nil && len(tasks) > 0 {
@@ -175,6 +215,7 @@ func (srv *Server) Serve() {
 	web.Get("/task/kill/(.*)", taskKill)
 	web.Get("/job/(.*)", jobGet)
 	web.Post("/job", jobNew)
+	web.Post("/job/runonce", jobRunOnce)
 	web.Post("/job/run/(.*)", jobRun)
 	web.Delete("/job/(.*)", jobRemove)
 	web.Put("/job/(.*)", jobUpdate)
