@@ -74,7 +74,7 @@ func (self *ResMan) addReadyTask(job *scheduler.Job) (string, error) {
 		return "", errors.Trace(err)
 	}
 
-	//job.LastTaskId = persistentTask.TaskId
+	job.LastTaskId = persistentTask.TaskId
 	//job.Save()
 
 	t := &Task{Tid: persistentTask.TaskId, job: job, state: taskReady}
@@ -220,8 +220,8 @@ func (self *ResMan) saveTaskStatus(persistentTask *scheduler.Task, status mesos.
 		persistentTask.Message = status.GetMessage()
 	}
 	persistentTask.Url = url
-	//	currentTask.job.LastStatus = persistentTask.Status
-	//	currentTask.job.Save()
+	currentTask.job.LastStatus = persistentTask.Status
+	currentTask.job.Save()
 	persistentTask.UpdateTs = time.Now().Unix()
 	persistentTask.Save()
 	switch *status.State {
