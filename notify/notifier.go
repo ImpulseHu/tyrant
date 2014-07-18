@@ -12,7 +12,7 @@ import (
 type WebhookInfo struct {
 	job    *scheduler.Job
 	task   *scheduler.Task
-	isLast bool //last update message, means task is finished or failed
+	isLast bool //last update message
 }
 
 type taskNotify struct {
