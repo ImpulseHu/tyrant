@@ -44,10 +44,6 @@ func (self *taskNotify) run() {
 		if err != nil {
 			log.Warning(err.Error(), msg.job, msg.task)
 		}
-
-		if msg.isLast { //no more message
-			return
-		}
 	}
 }
 
@@ -80,6 +76,7 @@ func (self *Notifier) EventLoop() {
 			n.ch <- msg
 			if msg.isLast {
 				delete(self.tasks, taskId)
+				close(n.ch)
 			}
 		}
 	}
