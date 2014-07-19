@@ -37,6 +37,7 @@ func (self *taskNotify) run() {
 		}{msg.job, msg.task})
 		if err != nil {
 			log.Warning(err.Error(), msg.job, msg.task)
+			continue
 		}
 		body := bytes.NewBuffer(buf)
 		_, err = http.Post(msg.job.WebHookUrl, "application/json", body)
