@@ -235,8 +235,14 @@ func authenticate(username, password string) bool {
 func (srv *Server) Serve() {
 	m := martini.Classic()
 
+	addr, _ := globalCfg.ReadString("http_addr", "9090")
+	ldap_enable, _ := globalCfg.ReadString("ldap_enable", "false")
+
 	m.Use(martini.Static("static"))
-	m.Use(auth.BasicFunc(authenticate))
+
+	if ldap_enable == "true" {
+		m.Use(auth.BasicFunc(authenticate))
+	}
 
 	m.Get("/job/list", jobList)
 	m.Get("/task/list", taskList)
@@ -248,7 +254,6 @@ func (srv *Server) Serve() {
 	m.Delete("/job/:id", jobRemove)
 	m.Put("/job/:id", jobUpdate)
 
-	addr, _ := globalCfg.ReadString("http_addr", "9090")
 	os.Setenv("PORT", addr)
 	m.Run()
 }
