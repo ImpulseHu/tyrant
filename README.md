@@ -14,6 +14,7 @@ works on mesos 0.18.2+
 * Killing tasks
 * Realtime task status
 * Support webhook 
+* Authentication by ldap 
 
 
 ## Usage:
