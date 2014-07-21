@@ -1,6 +1,9 @@
+#!/bin/sh
 go build
+chmod +x tyrant
 cd shellExecutor
 go build
+chmod +x shellExecutor
 mv -f shellExecutor ../shell_executor
 cd ../
 rm shell_executor.tar.gz -f
