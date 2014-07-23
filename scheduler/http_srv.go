@@ -311,18 +311,6 @@ func gc() {
 	}
 }
 
-func gc() {
-	tick := time.NewTicker(30 * time.Minute)
-	for {
-		select {
-		case <-tick.C:
-			log.Debug(time.Now().Unix())
-			//3 days before, todo: read it from config
-			RemoveTasks(time.Now().Unix() - 3*(24*3600))
-		}
-	}
-}
-
 func (srv *Server) Serve() {
 	m := martini.Classic()
 
