@@ -46,3 +46,7 @@ func (t *Task) Save() error {
 		return err
 	}
 }
+
+func RemoveTasks(ts int64) {
+	sharedDbMap.Exec("delete from tasks where update_ts<? and start_ts<?", ts, ts)
+}
