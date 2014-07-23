@@ -113,7 +113,7 @@
 		<% } %>
 
 		<td>
-            <% if (owner == getUsername()) { %>
+            <% if (getUsername() == "" || owner == getUsername()) { %>
 			<a href="javascript:void(0)" class="force-run-btn">Force Run</a> | 
 			<a href="javascript:void(0)" class="edit-btn">Edit</a> | 
 			<a href="javascript:void(0)" class="remove-btn">Remove</a>

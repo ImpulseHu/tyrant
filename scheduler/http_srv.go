@@ -32,6 +32,7 @@ type User string
 
 var (
 	s *Server
+	ldap_enable bool
 )
 
 func NewServer(addr string, notifier Notifier) *Server {
@@ -84,7 +85,7 @@ func jobUpdate(params martini.Params, req *http.Request, user User) (int, string
 		err = json.Unmarshal(b, &job)
 		j, _ := GetJobById(id)
 
-		if j.Owner != string(user) {
+		if ldap_enable && j != nil && j.Owner != string(user) {
 			return responseError(-3, "user not allowed")
 		}
 
@@ -127,7 +128,7 @@ func jobRemove(params martini.Params, user User) (int, string) {
 	log.Debug("on job remove")
 	j, _ := GetJobById(id)
 
-	if j != nil && j.Owner != string(user) {
+	if ldap_enable && j != nil && j.Owner != string(user) {
 		return responseError(-3, "user not allowed")
 	}
 
@@ -158,7 +159,7 @@ func jobRun(params martini.Params, user User) (int, string) {
 		return responseError(-1, err.Error())
 	}
 
-	if j != nil && j.Owner != string(user) {
+	if ldap_enable && j != nil && j.Owner != string(user) {
 		return responseError(-3, "user not allowed")
 	}
 
@@ -235,7 +236,7 @@ func taskKill(params martini.Params, user User) string {
 		if err != nil {
 			return err.Error()
 		}
-		if j != nil && j.Owner != string(user) {
+		if ldap_enable && j != nil && j.Owner != string(user) {
 			return "user not allowed"
 		}
 	}
@@ -314,11 +315,13 @@ func (srv *Server) Serve() {
 	m := martini.Classic()
 
 	addr, _ := globalCfg.ReadString("http_addr", "9090")
-	ldap_enable, _ := globalCfg.ReadString("ldap_enable", "false")
+	ldapOption, _ := globalCfg.ReadString("ldap_enable", "false")
+	ldap_enable = ldapOption == "true"
 
 	m.Use(martini.Static("static"))
+	m.Map(User(""))
 
-	if ldap_enable == "true" {
+	if ldap_enable{
 		m.Use(authenticate)
 	}
 

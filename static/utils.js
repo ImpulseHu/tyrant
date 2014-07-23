@@ -18,6 +18,8 @@ function getUsername() {
     var match = document.cookie.match(new RegExp("username=([^;]+)"));
     if (match) {
         return match[1];
+    } else {
+        return "";
     }
 }
 
