@@ -113,9 +113,11 @@
 		<% } %>
 
 		<td>
+            <% if (owner == getUsername()) { %>
 			<a href="javascript:void(0)" class="force-run-btn">Force Run</a> | 
 			<a href="javascript:void(0)" class="edit-btn">Edit</a> | 
 			<a href="javascript:void(0)" class="remove-btn">Remove</a>
+            <% } %>
 		</td>
 	</script>
 
@@ -168,7 +170,7 @@
 		</div>
 		<div class="form-group">
 			<label>Owner</label>	
-			<input type="text" class="form-control owner-input" value="<%= owner %>"></input>
+			<input type="text" class="form-control owner-input" value="<%= owner %>" disabled="disabled"></input>
 		</div>
 		<div class="form-group">
 			<label>Web Hook URL</label>	

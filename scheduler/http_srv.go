@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -8,10 +9,10 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-martini/martini"
-	"github.com/martini-contrib/auth"
 	"github.com/mqu/openldap"
 	log "github.com/ngaut/logging"
 )
@@ -26,6 +27,8 @@ type Server struct {
 	addr     string
 	notifier Notifier
 }
+
+type User string
 
 var (
 	s *Server
@@ -70,7 +73,7 @@ func jobList() (int, string) {
 	return responseSuccess(nil)
 }
 
-func jobUpdate(params martini.Params, req *http.Request) (int, string) {
+func jobUpdate(params martini.Params, req *http.Request, user User) (int, string) {
 	id := params["id"]
 	if JobExists(id) {
 		b, err := ioutil.ReadAll(req.Body)
@@ -80,6 +83,11 @@ func jobUpdate(params martini.Params, req *http.Request) (int, string) {
 		var job Job
 		err = json.Unmarshal(b, &job)
 		j, _ := GetJobById(id)
+
+		if j.Owner != string(user) {
+			return responseError(-3, "user not allowed")
+		}
+
 		if err != nil {
 			return responseError(-3, err.Error())
 		}
@@ -114,10 +122,15 @@ func jobNew(req *http.Request) (int, string) {
 	return responseSuccess(job)
 }
 
-func jobRemove(params martini.Params) (int, string) {
+func jobRemove(params martini.Params, user User) (int, string) {
 	id := params["id"]
 	log.Debug("on job remove")
 	j, _ := GetJobById(id)
+
+	if j != nil && j.Owner != string(user) {
+		return responseError(-3, "user not allowed")
+	}
+
 	if j != nil {
 		if err := j.Remove(); err != nil {
 			return responseError(-2, err.Error())
@@ -138,11 +151,15 @@ func jobGet(params martini.Params) (int, string) {
 	return responseSuccess(j)
 }
 
-func jobRun(params martini.Params) (int, string) {
+func jobRun(params martini.Params, user User) (int, string) {
 	id := params["id"]
 	j, err := GetJobById(id)
 	if err != nil {
 		return responseError(-1, err.Error())
+	}
+
+	if j != nil && j.Owner != string(user) {
+		return responseError(-3, "user not allowed")
 	}
 
 	if s.notifier != nil && j != nil {
@@ -205,8 +222,24 @@ func taskList() (int, string) {
 	return responseSuccess(nil)
 }
 
-func taskKill(params martini.Params) string {
+func taskKill(params martini.Params, user User) string {
 	id := params["id"]
+
+	task, err := GetTaskByTaskId(id)
+	if err != nil {
+		return err.Error()
+	}
+
+	if task != nil {
+		j, err := GetJobByName(task.JobName)
+		if err != nil {
+			return err.Error()
+		}
+		if j != nil && j.Owner != string(user) {
+			return "user not allowed"
+		}
+	}
+
 	if s.notifier != nil {
 		err := s.notifier.OnKillTask(id)
 		if err != nil {
@@ -218,7 +251,7 @@ func taskKill(params martini.Params) string {
 	return "error:notifier not registered"
 }
 
-func authenticate(username, password string) bool {
+func lookup_ldap(username, password string) bool {
 	ldap_server, _ := globalCfg.ReadString("ldap_server", "")
 	dn_fmt, _ := globalCfg.ReadString("dn_fmt", "")
 	ldap, err := openldap.Initialize(ldap_server)
@@ -228,8 +261,37 @@ func authenticate(username, password string) bool {
 	ldap.SetOption(openldap.LDAP_OPT_PROTOCOL_VERSION, openldap.LDAP_VERSION3)
 	dn := fmt.Sprintf(dn_fmt, username)
 	err = ldap.Bind(dn, password)
+	if err != nil {
+		return false
+	}
 	ldap.Close()
-	return err == nil
+	return true
+}
+
+func authenticate(res http.ResponseWriter, req *http.Request, c martini.Context) {
+	auth := req.Header.Get("Authorization")
+	if len(auth) < 6 || auth[:6] != "Basic " {
+		unauthorized(res)
+		return
+	}
+	b, err := base64.StdEncoding.DecodeString(auth[6:])
+	if err != nil {
+		unauthorized(res)
+		return
+	}
+	tokens := strings.SplitN(string(b), ":", 2)
+	if len(tokens) != 2 || !lookup_ldap(tokens[0], tokens[1]) {
+		unauthorized(res)
+		return
+	}
+	c.Map(User(tokens[0]))
+	cookie := http.Cookie{Name: "username", Value: tokens[0], Path: "/"}
+	http.SetCookie(res, &cookie)
+}
+
+func unauthorized(res http.ResponseWriter) {
+	res.Header().Set("WWW-Authenticate", "Basic realm=\"Authorization Required\"")
+	http.Error(res, "Not Authorized", http.StatusUnauthorized)
 }
 
 func (srv *Server) Serve() {
@@ -241,7 +303,7 @@ func (srv *Server) Serve() {
 	m.Use(martini.Static("static"))
 
 	if ldap_enable == "true" {
-		m.Use(auth.BasicFunc(authenticate))
+		m.Use(authenticate)
 	}
 
 	m.Get("/job/list", jobList)
