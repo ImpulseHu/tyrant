@@ -266,6 +266,7 @@ func (self *ResMan) handleMesosMasterInfoUpdate(info *cmdMesosMasterInfoUpdate) 
 		self.frameworkId = *info.frameworkId.Value
 	}
 }
+
 func (self *ResMan) dispatch(cmd interface{}) {
 	switch cmd.(type) {
 	case *cmdRunTask:

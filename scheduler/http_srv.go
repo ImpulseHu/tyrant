@@ -256,14 +256,18 @@ func lookup_ldap(username, password string) bool {
 	dn_fmt, _ := globalCfg.ReadString("dn_fmt", "")
 	ldap, err := openldap.Initialize(ldap_server)
 	if err != nil {
-		panic(err)
+		log.Error(err)
+		return false
 	}
+
 	ldap.SetOption(openldap.LDAP_OPT_PROTOCOL_VERSION, openldap.LDAP_VERSION3)
 	dn := fmt.Sprintf(dn_fmt, username)
 	err = ldap.Bind(dn, password)
 	if err != nil {
+		log.Warning(err)
 		return false
 	}
+
 	ldap.Close()
 	return true
 }
@@ -294,6 +298,18 @@ func unauthorized(res http.ResponseWriter) {
 	http.Error(res, "Not Authorized", http.StatusUnauthorized)
 }
 
+func gc() {
+	tick := time.NewTicker(30 * time.Minute)
+	for {
+		select {
+		case <-tick.C:
+			log.Debug(time.Now().Unix())
+			//3 days before, todo: read it from config
+			RemoveTasks(time.Now().Unix() - 3*(24*3600))
+		}
+	}
+}
+
 func (srv *Server) Serve() {
 	m := martini.Classic()
 
@@ -305,6 +321,8 @@ func (srv *Server) Serve() {
 	if ldap_enable == "true" {
 		m.Use(authenticate)
 	}
+
+	go gc()
 
 	m.Get("/job/list", jobList)
 	m.Get("/task/list", taskList)
