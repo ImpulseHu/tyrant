@@ -230,6 +230,11 @@ func authenticate(username, password string) bool {
 	ldap.SetOption(openldap.LDAP_OPT_PROTOCOL_VERSION, openldap.LDAP_VERSION3)
 	dn := fmt.Sprintf(dn_fmt, username)
 	err = ldap.Bind(dn, password)
+	if err != nil {
+		log.Warning(err)
+		return false
+	}
+
 	ldap.Close()
 	return err == nil
 }
