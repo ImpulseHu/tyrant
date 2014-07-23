@@ -205,6 +205,7 @@ var app = app || {};
 				_.each(e.data, function(o){ 
 					app.jobs.add(o); 
 				});
+                $(".owner-input").val(getUsername());
 			}, reset: true});
 		},
 

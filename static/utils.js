@@ -14,6 +14,15 @@ $.fn.serializeObject = function() {
     return o;
 };
 
+function getUsername() {
+    var match = document.cookie.match(new RegExp("username=([^;]+)"));
+    if (match) {
+        return match[1];
+    } else {
+        return "";
+    }
+}
+
 Date.prototype.Format = function(fmt) { //author: meizz   
   var o = {   
     "M+" : this.getMonth()+1,                 //月份   
