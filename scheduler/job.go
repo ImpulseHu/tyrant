@@ -68,10 +68,10 @@ func CheckAutoRunJobs(n Notifier) {
 	for {
 		log.Debug("start check auto run job...")
 		jobs := GetScheduledJobList()
-		for _, j := range jobs {
+		for i, j := range jobs {
 			if j.NeedAutoStart() {
 				log.Debug("Auto Run Job Found: ", j)
-				n.OnRunJob(strconv.FormatInt(j.Id, 10))
+				n.OnRunJob(&jobs[i])
 			}
 		}
 		time.Sleep(10 * time.Second)

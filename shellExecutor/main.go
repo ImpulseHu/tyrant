@@ -13,8 +13,8 @@ import (
 
 	"code.google.com/p/goprotobuf/proto"
 	"github.com/ActiveState/tail"
+	"github.com/mesosphere/mesos-go/mesos"
 	log "github.com/ngaut/logging"
-	"mesos.apache.org/mesos"
 )
 
 type contex struct {
@@ -139,12 +139,12 @@ func (self *ShellExecutor) OnLaunchTask(driver *mesos.ExecutorDriver, taskInfo m
 	log.Debugf("%+v", os.Args)
 	startch := make(chan struct{}, 1)
 	if len(os.Args) == 2 {
-		fname := genTyrantFile(taskId, "sh")
+		fname := path.Join(pwd, genTyrantFile(taskId, "sh"))
 		arg, err := base64.StdEncoding.DecodeString(os.Args[1])
 		if err != nil {
 			log.Error(err, arg)
 		}
-		ioutil.WriteFile(fname, arg, 0644)
+		ioutil.WriteFile(fname, arg, 0777)
 		cmd := exec.Command("/bin/sh", fname)
 		go func(taskId string) {
 			var err error

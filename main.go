@@ -38,7 +38,7 @@ func tryRunAsLeader() {
 		log.Fatal(err)
 	}
 	zkaddr, err := config.ReadString("zk", "localhost:2181/tyrant")
-	log.Debug(zkaddr)
+	log.Debug("zk:", zkaddr)
 
 	zkConn, _, err := zk.Connect(strings.Split(zkaddr, ","), 3*time.Second)
 	if err != nil {

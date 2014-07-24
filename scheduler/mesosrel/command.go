@@ -2,6 +2,7 @@ package mesosrel
 
 import (
 	"github.com/mesosphere/mesos-go/mesos"
+	"github.com/ngaut/tyrant/scheduler"
 )
 
 const (
@@ -26,8 +27,8 @@ type cmdMesosStatusUpdate struct {
 }
 
 type cmdRunTask struct {
-	Id string
-	ch chan *pair //return task id and error
+	job *scheduler.Job
+	ch  chan *pair //return task id and error
 }
 
 type cmdGetTaskStatus struct {

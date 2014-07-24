@@ -12,7 +12,7 @@ import (
 type WebhookInfo struct {
 	job    *scheduler.Job
 	task   *scheduler.Task
-	isLast bool //last update message, means task is finished or failed
+	isLast bool //last update message
 }
 
 type taskNotify struct {
@@ -37,15 +37,12 @@ func (self *taskNotify) run() {
 		}{msg.job, msg.task})
 		if err != nil {
 			log.Warning(err.Error(), msg.job, msg.task)
+			continue
 		}
 		body := bytes.NewBuffer(buf)
 		_, err = http.Post(msg.job.WebHookUrl, "application/json", body)
 		if err != nil {
 			log.Warning(err.Error(), msg.job, msg.task)
-		}
-
-		if msg.isLast { //no more message
-			return
 		}
 	}
 }
@@ -79,6 +76,7 @@ func (self *Notifier) EventLoop() {
 			n.ch <- msg
 			if msg.isLast {
 				delete(self.tasks, taskId)
+				close(n.ch)
 			}
 		}
 	}
