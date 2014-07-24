@@ -142,11 +142,13 @@ var app = app || {};
 		},
 
 		onRemoveClick: function () {
-			var that = this;
-			this.model.destroy({success: function(m, resp) {
-				app.jobs.remove(m);
-				that.remove();
-			}});
+		    if (confirm('Are you sure?')) {
+                var that = this;
+                this.model.destroy({success: function(m, resp) {
+                    app.jobs.remove(m);
+                    that.remove();
+                }});
+			}
 		},
 
 		onEditClick: function () {

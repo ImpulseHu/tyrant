@@ -321,8 +321,13 @@ func (srv *Server) Serve() {
 	m.Use(martini.Static("static"))
 	m.Map(User(""))
 
-	if ldap_enable{
+	if ldap_enable {
 		m.Use(authenticate)
+	} else {
+		m.Use(func(res http.ResponseWriter) {
+			cookie := http.Cookie{Name: "username", Value: "", Path: "/"}
+			http.SetCookie(res, &cookie)
+		})
 	}
 
 	go gc()
