@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Tyrant</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="dashboard.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+
+    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container-fluid">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="#">Tyrant</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- create job modal  -->
+    <div class="modal fade" id="job-modal" tabindex="-1" role="dialog" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+            <h4 class="modal-title" id="job-modal-title">New Job</h4>
+          </div>
+          <div class="modal-body">
+            <form role="form">
+              <div class="form-group">
+                <label for="exampleInputEmail1">Job Name</label>
+                <input type="text" class="form-control" id="input-job-name" placeholder="Job Name">
+              </div>
+
+              <div class="form-group">
+                <label for="exampleInputEmail1">Executor</label>
+                <input type="text" class="form-control" id="input-executor" placeholder="Executor">
+              </div>
+
+              <div class="form-group">
+                <label for="exampleInputFile">Executor Parameter</label>
+                <textarea type="text" class="form-control" id="input-executor-parameter" placeholder="Executor"></textarea>
+                <p class="help-block">Example block-level help text here.</p>
+              </div>
+
+              <div class="form-group">
+                <label for="exampleInputFile">Executor Uri</label>
+                <input type="text" class="form-control" id="input-executor-uri" placeholder="Executor">
+                <p class="help-block">Example block-level help text here.</p>
+              </div>
+
+              <div class="form-group">
+                <label for="exampleInputFile">Scheduler</label>
+                <input type="text" class="form-control" id="input-scheduler" placeholder="Executor">
+                <p class="help-block">Example block-level help text here.</p>
+              </div>
+
+              <div class="form-group">
+                <label for="exampleInputFile">WebHook Url</label>
+                <input type="text" class="form-control" id="input-webhook-url" placeholder="Executor">
+                <p class="help-block">Example block-level help text here.</p>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- end of job modal  -->
+
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-sm-3 col-md-2 sidebar">
+          <ul class="nav nav-sidebar">
+            <li class="active"><a href="/v2/job">Jobs</a></li>
+            <li><a href="/v2/status">Task Status</a></li>
+            <li><a href="#">History</a></li>
+          </ul>
+        </div>
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+          <h4 class="pull-left"> Jobs </h4>
+          <button class="btn btn-primary pull-right" data-toggle="modal" data-target="#job-modal"> Create New Job </button>
+          <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Executor</th>
+                        <th>Owner</th>
+                        <th>Create At</th>
+                        <th>Last Status</th>
+                        <th>Last Success Time</th>
+                        <th>Last Task ID</th>
+                        <th></th>
+                    </tr>
+                </thead>
+              <tbody>
+                {{ range .jobs }}
+                    <tr>
+                        <td>{{ .Id }}</td>
+                        <td>{{ .Name }}</td>
+                        <td>{{ .Executor }}</td>
+                        <td>{{ .Owner }}</td>
+                        <td>{{ .CreateTs }}</td>
+                        <td><span class="label label-success">{{ .LastStatus }}</span> </td>
+                        <td>{{ .LastSuccessTs }}</td>
+                        <td><a href="#">{{ .LastTaskId }}</a></td>
+                        <td><a>Edit</a> | <a>Remove</a></td>
+                    </tr>
+                {{ end }}
+              </tbody>
+            </table>
+            <ul class="pagination pagination-sm">
+              <li><a href="#">«</a></li>
+              {{ range $idx, $element := .max_page }}
+                {{ $page := add $idx 1 }}
+                <li class="{{ if eq $page $.cur_page }}active{{ end }}"><a href="/v2/job?page={{ $page }}&limit={{ $.limit }}">{{ $page }}</a></li>
+              {{ end }}
+              <li><a href="#">»</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="http://getbootstrap.com/dist/js/bootstrap.min.js"></script>
+  </body>
+</html>
+

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/go-martini/martini"
+	"github.com/martini-contrib/render"
 	"github.com/mqu/openldap"
 	log "github.com/ngaut/logging"
 )
@@ -31,9 +33,15 @@ type Server struct {
 type User string
 
 var (
-	s *Server
-	ldap_enable bool
+	s          *Server
+	ldapEnable bool
 )
+
+type PageInfo struct {
+	page   int
+	limit  int
+	offset int
+}
 
 func NewServer(addr string, notifier Notifier) *Server {
 	if s != nil {
@@ -85,7 +93,7 @@ func jobUpdate(params martini.Params, req *http.Request, user User) (int, string
 		err = json.Unmarshal(b, &job)
 		j, _ := GetJobById(id)
 
-		if ldap_enable && j != nil && j.Owner != string(user) {
+		if ldapEnable && j != nil && j.Owner != string(user) {
 			return responseError(-3, "user not allowed")
 		}
 
@@ -128,7 +136,7 @@ func jobRemove(params martini.Params, user User) (int, string) {
 	log.Debug("on job remove")
 	j, _ := GetJobById(id)
 
-	if ldap_enable && j != nil && j.Owner != string(user) {
+	if ldapEnable && j != nil && j.Owner != string(user) {
 		return responseError(-3, "user not allowed")
 	}
 
@@ -159,7 +167,7 @@ func jobRun(params martini.Params, user User) (int, string) {
 		return responseError(-1, err.Error())
 	}
 
-	if ldap_enable && j != nil && j.Owner != string(user) {
+	if ldapEnable && j != nil && j.Owner != string(user) {
 		return responseError(-3, "user not allowed")
 	}
 
@@ -236,7 +244,7 @@ func taskKill(params martini.Params, user User) string {
 		if err != nil {
 			return err.Error()
 		}
-		if ldap_enable && j != nil && j.Owner != string(user) {
+		if ldapEnable && j != nil && j.Owner != string(user) {
 			return "user not allowed"
 		}
 	}
@@ -294,6 +302,23 @@ func authenticate(res http.ResponseWriter, req *http.Request, c martini.Context)
 	http.SetCookie(res, &cookie)
 }
 
+func pagination(req *http.Request, c martini.Context) {
+	req.ParseForm()
+	page, err := strconv.Atoi(req.FormValue("page"))
+	if err != nil {
+		page = 1
+	}
+	limit, err := strconv.Atoi(req.FormValue("limit"))
+	if err != nil {
+		limit = 20
+	}
+	c.Map(PageInfo{
+		page:   page,
+		limit:  limit,
+		offset: (page - 1) * limit,
+	})
+}
+
 func unauthorized(res http.ResponseWriter) {
 	res.Header().Set("WWW-Authenticate", "Basic realm=\"Authorization Required\"")
 	http.Error(res, "Not Authorized", http.StatusUnauthorized)
@@ -311,17 +336,53 @@ func gc() {
 	}
 }
 
+func slice(n int64) []int { return make([]int, n) }
+
+// V2 APIs
+func jobPageV2(req *http.Request, r render.Render, p PageInfo) {
+	jobs := GetJobListWithOffset(p.offset, p.limit)
+	jobsCnt, err := GetTotalJobCount()
+	if err != nil {
+		log.Warning(err)
+		jobsCnt = 0
+	}
+
+	r.HTML(200, "job", map[string]interface{}{
+		"jobs":     jobs,
+		"max_page": slice(jobsCnt/int64(p.limit) + 1),
+		"limit":    p.limit,
+		"cur_page": p.page,
+	})
+}
+
+func taskPageV2(params martini.Params, r render.Render, p PageInfo) {
+	tasks := GetTaskListWithOffset(p.offset, p.limit)
+	taskCnt, err := GetTotalTaskCount()
+	if err != nil {
+		log.Warning(err)
+		taskCnt = 0
+	}
+
+	r.HTML(200, "status", map[string]interface{}{
+		"tasks":    tasks,
+		"max_page": slice(taskCnt/int64(p.limit) + 1),
+		"limit":    p.limit,
+		"cur_page": p.page,
+	})
+
+}
+
 func (srv *Server) Serve() {
 	m := martini.Classic()
 
 	addr, _ := globalCfg.ReadString("http_addr", "9090")
-	ldapOption, _ := globalCfg.ReadString("ldap_enable", "false")
-	ldap_enable = ldapOption == "true"
+	ldapOption, _ := globalCfg.ReadString("ldapEnable", "false")
+	ldapEnable = ldapOption == "true"
 
 	m.Use(martini.Static("static"))
 	m.Map(User(""))
 
-	if ldap_enable {
+	if ldapEnable {
 		m.Use(authenticate)
 	} else {
 		m.Use(func(res http.ResponseWriter) {
@@ -329,6 +390,24 @@ func (srv *Server) Serve() {
 			http.SetCookie(res, &cookie)
 		})
 	}
+
+	m.Use(pagination)
+
+	m.Use(render.Renderer(render.Options{
+		Directory:  "templates",
+		Extensions: []string{".tmpl", ".html"},
+		Charset:    "UTF-8",
+		Funcs: []template.FuncMap{
+			template.FuncMap{
+				"add": func(a, b int) int {
+					return a + b
+				},
+			},
+		},
+		IndentJSON: true, // Output human readable JSON
+	}))
+
+	m.Use(martini.Static("static"))
 
 	go gc()
 
@@ -341,6 +420,10 @@ func (srv *Server) Serve() {
 	m.Post("/job/run/:id", jobRun)
 	m.Delete("/job/:id", jobRemove)
 	m.Put("/job/:id", jobUpdate)
+
+	// V2 APIs
+	m.Get("/v2/job", jobPageV2)
+	m.Get("/v2/status", taskPageV2)
 
 	os.Setenv("PORT", addr)
 	m.Run()
