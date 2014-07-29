@@ -38,9 +38,9 @@ func GetTaskListWithOffset(offset int, limit int) []Task {
 	var tasks []Task
 	sql := ""
 	if offset == -1 || limit == -1 {
-		sql = "select * from tasks order by start_ts"
+		sql = "select * from tasks order by start_ts desc"
 	} else {
-		sql = fmt.Sprintf("select * from tasks order by start_ts limit %d offset %d", limit, offset)
+		sql = fmt.Sprintf("select * from tasks order by start_ts desc limit %d offset %d", limit, offset)
 	}
 	_, err := sharedDbMap.Select(&tasks, sql)
 	if err != nil {

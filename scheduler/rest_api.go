@@ -402,6 +402,13 @@ func (srv *Server) Serve() {
 				"add": func(a, b int) int {
 					return a + b
 				},
+				"ts_to_date": func(ts int64) string {
+					if ts > 0 {
+						t := time.Unix(ts, 0)
+						return t.Format("2006-01-02 15:04:05")
+					}
+					return "NEVER"
+				},
 			},
 		},
 		IndentJSON: true, // Output human readable JSON

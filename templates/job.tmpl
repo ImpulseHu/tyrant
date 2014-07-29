@@ -120,9 +120,9 @@
                         <td>{{ .Name }}</td>
                         <td>{{ .Executor }}</td>
                         <td>{{ .Owner }}</td>
-                        <td>{{ .CreateTs }}</td>
+                        <td>{{ ts_to_date .CreateTs }}</td>
                         <td><span class="label label-success">{{ .LastStatus }}</span> </td>
-                        <td>{{ .LastSuccessTs }}</td>
+                        <td>{{ ts_to_date .LastSuccessTs }}</td>
                         <td><a href="#">{{ .LastTaskId }}</a></td>
                         <td><a>Edit</a> | <a>Remove</a></td>
                     </tr>

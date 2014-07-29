@@ -49,9 +49,9 @@ func GetJobListWithOffset(offset int, limit int) []Job {
 	var jobs []Job
 	sql := ""
 	if offset == -1 || limit == -1 {
-		sql = "select * from jobs order by create_ts"
+		sql = "select * from jobs order by create_ts desc"
 	} else {
-		sql = fmt.Sprintf("select * from jobs order by create_ts limit %d offset %d", limit, offset)
+		sql = fmt.Sprintf("select * from jobs order by create_ts desc limit %d offset %d", limit, offset)
 	}
 	_, err := sharedDbMap.Select(&jobs, sql)
 	if err != nil {
