@@ -469,6 +469,9 @@ func (srv *Server) Serve() {
 	// V2 APIs
 	m.Get("/v2/job", jobPageV2)
 	m.Get("/v2/status", taskPageV2)
+	m.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/v2/job", http.StatusFound)
+	})
 
 	os.Setenv("PORT", addr)
 	m.Run()
