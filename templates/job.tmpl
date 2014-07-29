@@ -117,13 +117,13 @@
                 {{ range .jobs }}
                     <tr id="job-{{ .Id }}">
                         <td>{{ .Id }}</td>
-                        <td>{{ .Name }}</td>
+                        <td><a href="/v2/status?f_job_name={{ .Name }}">{{ .Name }}</a></td>
                         <td>{{ .Executor }}</td>
                         <td>{{ .Owner }}</td>
                         <td>{{ ts_to_date .CreateTs }}</td>
                         <td><span class="label label-success">{{ .LastStatus }}</span> </td>
                         <td>{{ ts_to_date .LastSuccessTs }}</td>
-                        <td><a href="/v2/status?task={{ .LastTaskId }}">{{ .LastTaskId }}</a></td>
+                        <td><a href="/v2/status?f_task_id={{ .LastTaskId }}">{{ .LastTaskId }}</a></td>
                         <td>
                             <a class="edit-btn" href="javascript:void(0)" data-id={{ .Id }}>Edit</a> |
                             <a class="remove-btn" href="javascript:void(0)" data-id={{ .Id }}>Remove</a> |

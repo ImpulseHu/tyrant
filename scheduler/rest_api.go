@@ -43,6 +43,8 @@ type PageInfo struct {
 	offset int
 }
 
+type FilterInfo map[string]string
+
 func NewServer(addr string, notifier Notifier) *Server {
 	if s != nil {
 		return s
@@ -310,6 +312,18 @@ func authenticate(res http.ResponseWriter, req *http.Request, c martini.Context)
 	http.SetCookie(res, &cookie)
 }
 
+func filter(req *http.Request, c martini.Context) {
+	req.ParseForm()
+	m := make(FilterInfo)
+	for k, v := range req.Form {
+		if strings.HasPrefix(k, "f_") {
+			field := strings.Split(k, "f_")[1]
+			m[field] = v[0]
+		}
+	}
+	c.Map(m)
+}
+
 func pagination(req *http.Request, c martini.Context) {
 	req.ParseForm()
 	page, err := strconv.Atoi(req.FormValue("page"))
@@ -363,8 +377,8 @@ func jobPageV2(req *http.Request, r render.Render, p PageInfo) {
 	})
 }
 
-func taskPageV2(params martini.Params, r render.Render, p PageInfo) {
-	tasks := GetTaskListWithOffset(p.offset, p.limit)
+func taskPageV2(params martini.Params, r render.Render, p PageInfo, filter FilterInfo) {
+	tasks := GetTaskListWithOffsetAndFilter(p.offset, p.limit, filter)
 	taskCnt, err := GetTotalTaskCount()
 	if err != nil {
 		log.Warning(err)
@@ -400,6 +414,7 @@ func (srv *Server) Serve() {
 	}
 
 	m.Use(pagination)
+	m.Use(filter)
 
 	m.Use(render.Renderer(render.Options{
 		Directory:  "templates",

@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"strings"
 
 	log "github.com/ngaut/logging"
 )
@@ -31,16 +32,29 @@ func GetTotalTaskCount() (int64, error) {
 }
 
 func GetTaskList() []Task {
-	return GetTaskListWithOffset(-1, -1)
+	return GetTaskListWithOffsetAndFilter(-1, -1, nil)
 }
 
-func GetTaskListWithOffset(offset int, limit int) []Task {
+func GetTaskListWithOffsetAndFilter(offset int, limit int, filter FilterInfo) []Task {
 	var tasks []Task
+	var filterFields []string
 	sql := ""
-	if offset == -1 || limit == -1 {
-		sql = "select * from tasks order by start_ts desc"
+	// create where statement
+	for k, v := range filter {
+		filterFields = append(filterFields, k+`="`+v+`"`)
+	}
+	var filterStr string
+	if len(filterFields) > 0 {
+		filterStr = strings.Join(filterFields, " and ")
+		filterStr = " where " + filterStr
 	} else {
-		sql = fmt.Sprintf("select * from tasks order by start_ts desc limit %d offset %d", limit, offset)
+		filterStr = ""
+	}
+
+	if offset == -1 || limit == -1 {
+		sql = fmt.Sprintf("select * from tasks %s order by start_ts desc", filterStr)
+	} else {
+		sql = fmt.Sprintf("select * from tasks %s order by start_ts desc limit %d offset %d", filterStr, limit, offset)
 	}
 	_, err := sharedDbMap.Select(&tasks, sql)
 	if err != nil {
