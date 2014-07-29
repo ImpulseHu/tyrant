@@ -377,7 +377,7 @@ func gc() {
 func slice(n int64) []int { return make([]int, n) }
 
 // V2 APIs
-func jobPageV2(req *http.Request, r render.Render, p PageInfo) {
+func jobPageV2(req *http.Request, user User, r render.Render, p PageInfo) {
 	jobs := GetJobListWithOffset(p.offset, p.limit)
 	jobsCnt, err := GetTotalJobCount()
 	if err != nil {
@@ -393,7 +393,7 @@ func jobPageV2(req *http.Request, r render.Render, p PageInfo) {
 	})
 }
 
-func taskPageV2(req *http.Request, params martini.Params, r render.Render, p PageInfo, filter FilterInfo) {
+func taskPageV2(req *http.Request, user User, params martini.Params, r render.Render, p PageInfo, filter FilterInfo) {
 	tasks := GetTaskListWithOffsetAndFilter(p.offset, p.limit, filter)
 	taskCnt, err := GetTotalTaskCount(filter)
 	if err != nil {
