@@ -128,7 +128,8 @@
                         <td>{{ .Executor }}</td>
                         <td><a href="/v2/job?f_owner={{ .Owner }}">{{ .Owner }}</a></td>
                         <td>{{ ts_to_date .CreateTs }}</td>
-                        <td><span class="label label-success">{{ .LastStatus }}</span> </td>
+
+                        <td><a href="/v2/status?f_id={{ .LastTaskId }}"><span class="label {{if eq .LastStatus "READY" }} label-primary  {{ else if eq .LastStatus "TASK_RUNNING" }} label-primary {{ else if eq .LastStatus "TASK_FINISHED" }} label-success {{ else }} label-danger {{ end }}">{{ .LastStatus }}</span></a> </td>
                         <td>{{ ts_to_date .LastSuccessTs }}</td>
                         <td><a href="/v2/status?f_id={{ .LastTaskId }}">{{ .LastTaskId }}</a></td>
                         <td>
