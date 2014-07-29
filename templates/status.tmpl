@@ -60,9 +60,9 @@
                 {{ range .tasks }}
                     <tr>
                         <td> {{ .TaskId }} </td>
-                        <td> {{ .JobName }} </td>
+                        <td><a href="/v2/status?f_job_name={{ .JobName }}">{{ .JobName }}</a></td>
                         <td> {{ ts_to_date .StartTs }} </td>
-                        <td><span class="label {{if eq .Status "READY" }} label-primary  {{ else if eq .Status "TASK_RUNNING" }} label-primary {{ else if eq .Status "TASK_FINISHED" }} label-success {{ else }} label-danger {{ end }}">{{ .Status }}</span> </td>
+                        <td><a href="/v2/status?f_status={{ .Status }}"><span class="label {{if eq .Status "READY" }} label-primary  {{ else if eq .Status "TASK_RUNNING" }} label-primary {{ else if eq .Status "TASK_FINISHED" }} label-success {{ else }} label-danger {{ end }}">{{ .Status }}</span></a> </td>
                         <td><a class="kill-btn" href="javascript:void(0)" data-id="{{ .TaskId }}"> KILL </a></td>
                         <td><a href="{{ .Url }}" target="_blank"> OUTPUT </a></td>
                         <td>{{ .Message }}</td>
