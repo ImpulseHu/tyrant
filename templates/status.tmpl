@@ -73,7 +73,7 @@
             <ul class="pagination pagination-sm">
               {{ range $idx, $element := .max_page }}
                 {{ $page := add $idx 1 }}
-                <li class="{{ if eq $page $.cur_page }}active{{ end }}"><a href="/v2/status?page={{ $page }}&limit={{ $.limit }}">{{ $page }}</a></li>
+                <li class="{{ if eq $page $.cur_page }}active{{ end }}"><a href="javascript:void(0)" class="go-page" data-page={{ $page }} data-limit={{ $.limit }}>{{ $page }}</a></li>
               {{ end }}
             </ul>
           </div>

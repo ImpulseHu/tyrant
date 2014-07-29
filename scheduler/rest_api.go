@@ -45,6 +45,22 @@ type PageInfo struct {
 
 type FilterInfo map[string]string
 
+func (f FilterInfo) Statement() string {
+	var filterFields []string
+	// create where statement
+	for k, v := range f {
+		filterFields = append(filterFields, k+`="`+v+`"`)
+	}
+	var filterStr string
+	if len(filterFields) > 0 {
+		filterStr = strings.Join(filterFields, " and ")
+		filterStr = " where " + filterStr
+	} else {
+		filterStr = ""
+	}
+	return filterStr
+}
+
 func NewServer(addr string, notifier Notifier) *Server {
 	if s != nil {
 		return s
@@ -377,9 +393,9 @@ func jobPageV2(req *http.Request, r render.Render, p PageInfo) {
 	})
 }
 
-func taskPageV2(params martini.Params, r render.Render, p PageInfo, filter FilterInfo) {
+func taskPageV2(req *http.Request, params martini.Params, r render.Render, p PageInfo, filter FilterInfo) {
 	tasks := GetTaskListWithOffsetAndFilter(p.offset, p.limit, filter)
-	taskCnt, err := GetTotalTaskCount()
+	taskCnt, err := GetTotalTaskCount(filter)
 	if err != nil {
 		log.Warning(err)
 		taskCnt = 0
@@ -391,7 +407,6 @@ func taskPageV2(params martini.Params, r render.Render, p PageInfo, filter Filte
 		"limit":    p.limit,
 		"cur_page": p.page,
 	})
-
 }
 
 func (srv *Server) Serve() {

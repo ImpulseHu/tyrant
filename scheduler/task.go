@@ -2,7 +2,6 @@ package scheduler
 
 import (
 	"fmt"
-	"strings"
 
 	log "github.com/ngaut/logging"
 )
@@ -23,8 +22,8 @@ var STATUS_RUNNING string = "RUNNING"
 var STATUS_SUCCESS string = "SUCCESS"
 var STATUS_FAILED string = "FAILED"
 
-func GetTotalTaskCount() (int64, error) {
-	cnt, err := sharedDbMap.SelectInt("select count(*) from tasks")
+func GetTotalTaskCount(filter FilterInfo) (int64, error) {
+	cnt, err := sharedDbMap.SelectInt(fmt.Sprintf("select count(*) from tasks %s", filter.Statement()))
 	if err != nil {
 		return -1, err
 	}
@@ -37,24 +36,12 @@ func GetTaskList() []Task {
 
 func GetTaskListWithOffsetAndFilter(offset int, limit int, filter FilterInfo) []Task {
 	var tasks []Task
-	var filterFields []string
 	sql := ""
-	// create where statement
-	for k, v := range filter {
-		filterFields = append(filterFields, k+`="`+v+`"`)
-	}
-	var filterStr string
-	if len(filterFields) > 0 {
-		filterStr = strings.Join(filterFields, " and ")
-		filterStr = " where " + filterStr
-	} else {
-		filterStr = ""
-	}
 
 	if offset == -1 || limit == -1 {
-		sql = fmt.Sprintf("select * from tasks %s order by start_ts desc", filterStr)
+		sql = fmt.Sprintf("select * from tasks %s order by start_ts desc", filter.Statement())
 	} else {
-		sql = fmt.Sprintf("select * from tasks %s order by start_ts desc limit %d offset %d", filterStr, limit, offset)
+		sql = fmt.Sprintf("select * from tasks %s order by start_ts desc limit %d offset %d", filter.Statement(), limit, offset)
 	}
 	_, err := sharedDbMap.Select(&tasks, sql)
 	if err != nil {
