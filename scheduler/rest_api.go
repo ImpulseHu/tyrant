@@ -243,12 +243,14 @@ func taskKill(params martini.Params, user User) string {
 
 	task, err := GetTaskByTaskId(id)
 	if err != nil {
+		log.Debug(err)
 		return err.Error()
 	}
 
 	if task != nil {
 		j, err := GetJobByName(task.JobName)
 		if err != nil {
+			log.Debug(err)
 			return err.Error()
 		}
 		if ldapEnable && j != nil && j.Owner != string(user) {
