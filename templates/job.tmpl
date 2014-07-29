@@ -124,7 +124,10 @@
                         <td><span class="label label-success">{{ .LastStatus }}</span> </td>
                         <td>{{ ts_to_date .LastSuccessTs }}</td>
                         <td><a href="#">{{ .LastTaskId }}</a></td>
-                        <td><a class="edit-btn" href="javascript:void(0)" data-id={{ .Id }}>Edit</a> | <a class="remove-btn" href="javascript:void(0)" data-id={{ .Id }}>Remove</a></td>
+                        <td>
+                            <a class="edit-btn" href="javascript:void(0)" data-id={{ .Id }}>Edit</a> |
+                            <a class="remove-btn" href="javascript:void(0)" data-id={{ .Id }}>Remove</a> |
+                            <a class="run-btn" href="javascript:void(0)" data-id={{ .Id }}>Run</a></td>
                     </tr>
                 {{ end }}
               </tbody>

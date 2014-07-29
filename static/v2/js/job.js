@@ -89,4 +89,22 @@ $(document).ready(function(){
     });
   });
 
+  $('.run-btn').click(function() {
+    var job_id = $(this).data('id');
+    $.ajax({
+      url : '/job/run/' + job_id,
+      type: 'POST',
+      success: function(e) {
+        e = JSON.parse(e)
+        if (e.ret == 0) {
+          alert(e.data)
+        }
+      },
+      error: function(xhr, text, err) {
+        alert(xhr.responseText);
+      }
+    });
+  });
+
+
 })

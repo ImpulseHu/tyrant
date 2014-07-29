@@ -240,7 +240,7 @@ func taskList() (int, string) {
 
 func taskKill(params martini.Params, user User) string {
 	id := params["id"]
-
+	log.Info("kill task : ", id)
 	task, err := GetTaskByTaskId(id)
 	if err != nil {
 		log.Debug(err)
