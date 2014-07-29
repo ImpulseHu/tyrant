@@ -126,7 +126,7 @@
                         <td>{{ .Id }}</td>
                         <td><a href="/v2/status?f_job_name={{ .Name }}">{{ .Name }}</a></td>
                         <td>{{ .Executor }}</td>
-                        <td>{{ .Owner }}</td>
+                        <td><a href="/v2/job?f_owner={{ .Owner }}">{{ .Owner }}</a></td>
                         <td>{{ ts_to_date .CreateTs }}</td>
                         <td><span class="label label-success">{{ .LastStatus }}</span> </td>
                         <td>{{ ts_to_date .LastSuccessTs }}</td>
@@ -142,7 +142,7 @@
             <ul class="pagination pagination-sm">
               {{ range $idx, $element := .max_page }}
                 {{ $page := add $idx 1 }}
-                <li class="{{ if eq $page $.cur_page }}active{{ end }}"><a href="/v2/job?page={{ $page }}&limit={{ $.limit }}">{{ $page }}</a></li>
+                <li class="{{ if eq $page $.cur_page }}active{{ end }}"><a href="javascript:void(0)" class="go-page" data-page={{ $page }} data-limit={{ $.limit }}>{{ $page }}</a></li>
               {{ end }}
             </ul>
           </div>
@@ -155,6 +155,7 @@
     <!-- Placed at the end of the document so the pages load faster -->
     <script src="/components/jquery/jquery.js"></script>
     <script src="/components/bootstrap/bootstrap.min.js"></script>
+    <script src="/v2/js/utils.js"></script>
     <script src="/v2/js/job.js"></script>
   </body>
 </html>

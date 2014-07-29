@@ -23,6 +23,17 @@ var setFormValue = function(form_sel, obj) {
 
 $(document).ready(function(){
 
+  $('.go-page').click(function(e) {
+    var page = $(this).data('page');
+    var limit = $(this).data('limit');
+
+    var new_url = window.location.href;
+    new_url = changeURLPar(new_url, "page", page);
+    new_url = changeURLPar(new_url, "limit", limit);
+    window.location.href = new_url;
+  })
+
+
   $('#job-form').submit(function(e) {
     e.preventDefault();
     var action = $('#job-modal').data('action');

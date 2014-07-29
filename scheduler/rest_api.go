@@ -377,9 +377,9 @@ func gc() {
 func slice(n int64) []int { return make([]int, n) }
 
 // V2 APIs
-func jobPageV2(req *http.Request, user User, r render.Render, p PageInfo) {
-	jobs := GetJobListWithOffset(p.offset, p.limit)
-	jobsCnt, err := GetTotalJobCount()
+func jobPageV2(req *http.Request, user User, r render.Render, p PageInfo, filter FilterInfo) {
+	jobs := GetJobListWithOffsetAndFilter(p.offset, p.limit, filter)
+	jobsCnt, err := GetTotalJobCount(filter)
 	if err != nil {
 		log.Warning(err)
 		jobsCnt = 0
