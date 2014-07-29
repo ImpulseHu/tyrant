@@ -43,38 +43,45 @@
           </div>
           <div class="modal-body">
               <div class="form-group">
-                <label for="exampleInputEmail1">Job Name</label>
-                <input type="text" name="name" class="form-control" id="input-job-name" placeholder="Job Name">
+                <label>Job Name</label>
+                <input type="text" name="name" class="form-control" id="input-name" placeholder="Job Name">
               </div>
 
               <div class="form-group">
-                <label for="exampleInputEmail1">Executor</label>
+                <label>Executor</label>
                 <input type="text" name="executor" class="form-control" id="input-executor" placeholder="Executor">
               </div>
 
               <div class="form-group">
-                <label for="exampleInputFile">Executor Parameter</label>
-                <textarea type="text" name="executor_flags" class="form-control" id="input-executor-parameter" placeholder="Executor"></textarea>
-                <p class="help-block">Example block-level help text here.</p>
+                <label>Executor Parameter</label>
+                <textarea type="text" name="executor_flags" class="form-control" id="input-executor_flags" placeholder=""></textarea>
+                <p class="help-block">executor parameter, e.g. ./run.sh </p>
               </div>
 
               <div class="form-group">
-                <label for="exampleInputFile">Executor Uri</label>
-                <input type="text" name="uris" class="form-control" id="input-executor-uri" placeholder="Executor">
-                <p class="help-block">Example block-level help text here.</p>
+                <label >Executor Uri</label>
+                <input type="text" name="uris" class="form-control" id="input-uris" placeholder="">
+                <p class="help-block">executo URI, support HDFS, HTTP</p>
               </div>
 
               <div class="form-group">
-                <label for="exampleInputFile">Scheduler</label>
-                <input type="text" name="schedule" class="form-control" id="input-scheduler" placeholder="Executor">
-                <p class="help-block">Example block-level help text here.</p>
+                <label>Scheduler</label>
+                <input type="text" name="schedule" class="form-control" id="input-schedule" placeholder="">
+                <p class="help-block">crontab format</p>
               </div>
 
               <div class="form-group">
-                <label for="exampleInputFile">WebHook Url</label>
-                <input type="text" name="hook" class="form-control" id="input-webhook-url" placeholder="Executor">
-                <p class="help-block">Example block-level help text here.</p>
+                <label>WebHook Url</label>
+                <input type="text" name="hook" class="form-control" id="input-hook" placeholder="">
+                <p class="help-block">Post a request to this url when job status changed</p>
               </div>
+
+              <div class="form-group">
+                <label>Owner</label>
+                <input type="text" name="owner" class="form-control" id="input-owner" placeholder="">
+                <p class="help-block">Your name</p>
+              </div>
+
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>

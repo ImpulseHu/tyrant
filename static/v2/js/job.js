@@ -15,8 +15,9 @@ $.fn.serializeObject = function() {
 };
 
 var setFormValue = function(form_sel, obj) {
+  console.log(obj)
   for(var k in obj) {
-    $(form_sel + ' input[name="' + k + '"]').val(obj[k]);
+    $(form_sel + ' #input-' + k).val(obj[k]);
   }
 }
 
@@ -54,11 +55,15 @@ $(document).ready(function(){
   $('.new-btn').click(function() {
     $('#job-modal').modal('show');
     $('#job-modal').data('action', 'new');
+
+    // clean form
+    $('#job-modal textarea').val('')
     $('#job-modal input').each(function(idx, o) {
       if ($(o).attr('type') == 'text') {
         $(o).val('');
       }
     });
+
   })
 
   $('.edit-btn').click(function() {

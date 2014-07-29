@@ -62,7 +62,7 @@
                         <td> {{ .TaskId }} </td>
                         <td> {{ .JobName }} </td>
                         <td> {{ ts_to_date .StartTs }} </td>
-                        <td><span class="label {{if eq .Status "READY" }} label-primary {{ else if eq .Status "TASK_FINISHED" }} label-success {{ else }} label-danger {{ end }}">{{ .Status }}</span> </td>
+                        <td><span class="label {{if eq .Status "READY" }} label-primary  {{ else if eq .Status "RUNNING" }} label-primary {{ else if eq .Status "TASK_FINISHED" }} label-success {{ else }} label-danger {{ end }}">{{ .Status }}</span> </td>
                         <td><a class="kill-btn" href="javascript:void(0)" data-id="{{ .TaskId }}"> KILL </a></td>
                         <td><a href="{{ .Url }}" target="_blank"> OUTPUT </a></td>
                         <td>{{ .Message }}</td>
