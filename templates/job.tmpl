@@ -36,51 +36,51 @@
     <div class="modal fade" id="job-modal" tabindex="-1" role="dialog" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
+          <form role="form" id="job-form">
           <div class="modal-header">
             <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
             <h4 class="modal-title" id="job-modal-title">New Job</h4>
           </div>
           <div class="modal-body">
-            <form role="form">
               <div class="form-group">
                 <label for="exampleInputEmail1">Job Name</label>
-                <input type="text" class="form-control" id="input-job-name" placeholder="Job Name">
+                <input type="text" name="name" class="form-control" id="input-job-name" placeholder="Job Name">
               </div>
 
               <div class="form-group">
                 <label for="exampleInputEmail1">Executor</label>
-                <input type="text" class="form-control" id="input-executor" placeholder="Executor">
+                <input type="text" name="executor" class="form-control" id="input-executor" placeholder="Executor">
               </div>
 
               <div class="form-group">
                 <label for="exampleInputFile">Executor Parameter</label>
-                <textarea type="text" class="form-control" id="input-executor-parameter" placeholder="Executor"></textarea>
+                <textarea type="text" name="executor_flags" class="form-control" id="input-executor-parameter" placeholder="Executor"></textarea>
                 <p class="help-block">Example block-level help text here.</p>
               </div>
 
               <div class="form-group">
                 <label for="exampleInputFile">Executor Uri</label>
-                <input type="text" class="form-control" id="input-executor-uri" placeholder="Executor">
+                <input type="text" name="uris" class="form-control" id="input-executor-uri" placeholder="Executor">
                 <p class="help-block">Example block-level help text here.</p>
               </div>
 
               <div class="form-group">
                 <label for="exampleInputFile">Scheduler</label>
-                <input type="text" class="form-control" id="input-scheduler" placeholder="Executor">
+                <input type="text" name="schedule" class="form-control" id="input-scheduler" placeholder="Executor">
                 <p class="help-block">Example block-level help text here.</p>
               </div>
 
               <div class="form-group">
                 <label for="exampleInputFile">WebHook Url</label>
-                <input type="text" class="form-control" id="input-webhook-url" placeholder="Executor">
+                <input type="text" name="hook" class="form-control" id="input-webhook-url" placeholder="Executor">
                 <p class="help-block">Example block-level help text here.</p>
               </div>
-            </form>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-            <button type="button" class="btn btn-primary">Save</button>
+            <input type="submit" class="btn btn-primary" value="Save"/>
           </div>
+        </form>
         </div>
       </div>
     </div>
@@ -97,7 +97,7 @@
         </div>
         <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
           <h4 class="pull-left"> Jobs </h4>
-          <button class="btn btn-primary pull-right" data-toggle="modal" data-target="#job-modal"> Create New Job </button>
+          <button class="btn btn-primary pull-right new-btn"> Create New Job </button>
           <div class="table-responsive">
             <table class="table table-striped">
                 <thead>
@@ -124,7 +124,7 @@
                         <td><span class="label label-success">{{ .LastStatus }}</span> </td>
                         <td>{{ ts_to_date .LastSuccessTs }}</td>
                         <td><a href="#">{{ .LastTaskId }}</a></td>
-                        <td><a>Edit</a> | <a>Remove</a></td>
+                        <td><a class="edit-btn" href="javascript:void(0)" data-id={{ .Id }}>Edit</a> | <a class="remove-btn" href="javascript:void(0)" data-id={{ .Id }}>Remove</a></td>
                     </tr>
                 {{ end }}
               </tbody>
@@ -145,8 +145,9 @@
     <!-- Bootstrap core JavaScript
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="/components/jquery/jquery.js"></script>
     <script src="http://getbootstrap.com/dist/js/bootstrap.min.js"></script>
+    <script src="/v2/js/job.js"></script>
   </body>
 </html>
 

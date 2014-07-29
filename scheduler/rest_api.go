@@ -100,11 +100,18 @@ func jobUpdate(params martini.Params, req *http.Request, user User) (int, string
 		if err != nil {
 			return responseError(-3, err.Error())
 		}
-		job.Id = j.Id
-		if err := job.Save(); err != nil {
+
+		j.Name = job.Name
+		j.Executor = job.Executor
+		j.ExecutorFlags = job.ExecutorFlags
+		j.Uris = job.Uris
+		j.Schedule = job.Schedule
+		j.WebHookUrl = job.WebHookUrl
+
+		if err := j.Save(); err != nil {
 			return responseError(-4, err.Error())
 		}
-		return responseSuccess(job)
+		return responseSuccess(j)
 	}
 
 	return responseError(-5, "no such job")
