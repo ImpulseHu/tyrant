@@ -287,7 +287,7 @@ func (self *ResMan) dispatch(cmd interface{}) {
 			self.driver.KillTask(&mesos.TaskID{Value: &info.taskId})
 			info.ch <- &pair{a0: "ok"}
 		} else {
-			info.ch <- &pair{a1: errors.New("task not running")}
+			info.ch <- &pair{a0: "", a1: errors.New("task not running")}
 		}
 	}
 }
