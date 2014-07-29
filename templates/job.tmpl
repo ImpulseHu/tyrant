@@ -10,7 +10,7 @@
     <title>Tyrant</title>
 
     <!-- Bootstrap core CSS -->
-    <link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/components/bootstrap/bootstrap.min.css" rel="stylesheet">
 
     <!-- Custom styles for this template -->
     <link href="dashboard.css" rel="stylesheet">
@@ -115,7 +115,7 @@
                 </thead>
               <tbody>
                 {{ range .jobs }}
-                    <tr>
+                    <tr id="job-{{ .Id }}">
                         <td>{{ .Id }}</td>
                         <td>{{ .Name }}</td>
                         <td>{{ .Executor }}</td>
@@ -130,12 +130,10 @@
               </tbody>
             </table>
             <ul class="pagination pagination-sm">
-              <li><a href="#">«</a></li>
               {{ range $idx, $element := .max_page }}
                 {{ $page := add $idx 1 }}
                 <li class="{{ if eq $page $.cur_page }}active{{ end }}"><a href="/v2/job?page={{ $page }}&limit={{ $.limit }}">{{ $page }}</a></li>
               {{ end }}
-              <li><a href="#">»</a></li>
             </ul>
           </div>
         </div>
@@ -146,7 +144,7 @@
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
     <script src="/components/jquery/jquery.js"></script>
-    <script src="http://getbootstrap.com/dist/js/bootstrap.min.js"></script>
+    <script src="/components/bootstrap/bootstrap.min.js"></script>
     <script src="/v2/js/job.js"></script>
   </body>
 </html>

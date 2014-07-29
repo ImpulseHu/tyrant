@@ -72,4 +72,21 @@ $(document).ready(function(){
     });
   });
 
+  $('.remove-btn').click(function() {
+    var job_id = $(this).data('id');
+    $.ajax({
+      url : '/job/' + job_id,
+      type: 'DELETE',
+      success: function(e) {
+        e = JSON.parse(e)
+        if (e.ret == 0) {
+          $('#job-' + job_id).remove();
+        }
+      },
+      error: function(xhr, text, err) {
+        alert(xhr.responseText);
+      }
+    });
+  });
+
 })

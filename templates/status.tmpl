@@ -10,7 +10,7 @@
     <title>Tyrant</title>
 
     <!-- Bootstrap core CSS -->
-    <link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/components/bootstrap/bootstrap.min.css" rel="stylesheet">
 
     <!-- Custom styles for this template -->
     <link href="dashboard.css" rel="stylesheet">
@@ -71,12 +71,10 @@
               </tbody>
             </table>
             <ul class="pagination pagination-sm">
-              <li><a href="#">«</a></li>
               {{ range $idx, $element := .max_page }}
                 {{ $page := add $idx 1 }}
                 <li class="{{ if eq $page $.cur_page }}active{{ end }}"><a href="/v2/status?page={{ $page }}&limit={{ $.limit }}">{{ $page }}</a></li>
               {{ end }}
-              <li><a href="#">»</a></li>
             </ul>
           </div>
         </div>
@@ -86,8 +84,8 @@
     <!-- Bootstrap core JavaScript
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
-    <script src="http://getbootstrap.com/dist/js/bootstrap.min.js"></script>
+    <script src="/components/jquery/jquery.js"></script>
+    <script src="/components/bootstrap/bootstrap.min.js"></script>
   </body>
 </html>
 
