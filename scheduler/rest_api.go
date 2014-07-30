@@ -286,7 +286,7 @@ func taskKill(params martini.Params, user User) string {
 	return "error:notifier not registered"
 }
 
-func lookup_ldap(username, password string) bool {
+func lookupLdap(username, password string) bool {
 	ldap_server, _ := globalCfg.ReadString("ldap_server", "")
 	dn_fmt, _ := globalCfg.ReadString("dn_fmt", "")
 	ldap, err := openldap.Initialize(ldap_server)
@@ -319,7 +319,7 @@ func authenticate(res http.ResponseWriter, req *http.Request, c martini.Context)
 		return
 	}
 	tokens := strings.SplitN(string(b), ":", 2)
-	if len(tokens) != 2 || !lookup_ldap(tokens[0], tokens[1]) {
+	if len(tokens) != 2 || !lookupLdap(tokens[0], tokens[1]) {
 		unauthorized(res)
 		return
 	}
@@ -413,10 +413,9 @@ func (srv *Server) Serve() {
 	m := martini.Classic()
 
 	addr, _ := globalCfg.ReadString("http_addr", "9090")
-	ldapOption, _ := globalCfg.ReadString("ldapEnable", "false")
+	ldapOption, _ := globalCfg.ReadString("ldap_enable", "false")
 	ldapEnable = ldapOption == "true"
 
-	m.Use(martini.Static("static"))
 	m.Map(User(""))
 
 	if ldapEnable {
