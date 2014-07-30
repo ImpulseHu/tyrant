@@ -25,7 +25,7 @@ works on mesos 0.18.2+
 
 		2. ./tyrant --master=zk://host:port/mesos
 
-		3. open browser http://localhost:9090
+		3. open browser http://localhost:9090/v2/job
 
 ## Api description
 		1. Create job
