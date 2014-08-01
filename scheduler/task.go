@@ -1,6 +1,10 @@
 package scheduler
 
-import log "github.com/ngaut/logging"
+import (
+	"fmt"
+
+	log "github.com/ngaut/logging"
+)
 
 type Task struct {
 	Id       int64  `db:"auto_incr_id" json:"auto_incr_id"`
@@ -18,11 +22,30 @@ var STATUS_RUNNING string = "RUNNING"
 var STATUS_SUCCESS string = "SUCCESS"
 var STATUS_FAILED string = "FAILED"
 
-func GetTaskList() []Task {
-	var tasks []Task
-	_, err := sharedDbMap.Select(&tasks, "select * from tasks order by start_ts desc")
+func GetTotalTaskCount(filter FilterInfo) (int64, error) {
+	cnt, err := sharedDbMap.SelectInt(fmt.Sprintf("select count(*) from tasks %s", filter.Statement()))
 	if err != nil {
-		log.Debug(err.Error())
+		return -1, err
+	}
+	return cnt, nil
+}
+
+func GetTaskList() []Task {
+	return GetTaskListWithOffsetAndFilter(-1, -1, nil)
+}
+
+func GetTaskListWithOffsetAndFilter(offset int, limit int, filter FilterInfo) []Task {
+	var tasks []Task
+	sql := ""
+
+	if offset == -1 || limit == -1 {
+		sql = fmt.Sprintf("select * from tasks %s order by start_ts desc", filter.Statement())
+	} else {
+		sql = fmt.Sprintf("select * from tasks %s order by start_ts desc limit %d offset %d", filter.Statement(), limit, offset)
+	}
+	_, err := sharedDbMap.Select(&tasks, sql)
+	if err != nil {
+		log.Warning(err)
 		return nil
 	}
 	return tasks

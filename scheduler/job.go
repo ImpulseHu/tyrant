@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -32,10 +33,29 @@ type Job struct {
 	WebHookUrl    string `db:"hook" json:"hook"`
 }
 
-func GetJobList() []Job {
-	var jobs []Job
-	_, err := sharedDbMap.Select(&jobs, "select * from jobs order by create_ts desc")
+func GetTotalJobCount(filter FilterInfo) (int64, error) {
+	cnt, err := sharedDbMap.SelectInt(fmt.Sprintf("select count(*) from jobs %s", filter.Statement()))
 	if err != nil {
+		return -1, err
+	}
+	return cnt, nil
+}
+
+func GetJobList() []Job {
+	return GetJobListWithOffsetAndFilter(-1, -1, nil)
+}
+
+func GetJobListWithOffsetAndFilter(offset int, limit int, filter FilterInfo) []Job {
+	var jobs []Job
+	sql := ""
+	if offset == -1 || limit == -1 {
+		sql = fmt.Sprintf("select * from jobs %s order by create_ts desc", filter.Statement())
+	} else {
+		sql = fmt.Sprintf("select * from jobs %s order by create_ts desc limit %d offset %d", filter.Statement(), limit, offset)
+	}
+	_, err := sharedDbMap.Select(&jobs, sql)
+	if err != nil {
+		log.Warning(err)
 		return nil
 	}
 	return jobs

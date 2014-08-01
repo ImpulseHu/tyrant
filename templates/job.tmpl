@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Tyrant</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="/components/bootstrap/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="dashboard.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+
+    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container-fluid">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="#">Tyrant</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- create job modal  -->
+    <div class="modal fade" id="job-modal" tabindex="-1" role="dialog" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form role="form" id="job-form">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+            <h4 class="modal-title" id="job-modal-title">New Job</h4>
+          </div>
+          <div class="modal-body">
+              <div class="form-group">
+                <label>Job Name</label>
+                <input type="text" name="name" class="form-control" id="input-name" placeholder="Job Name">
+              </div>
+
+              <div class="form-group">
+                <label>Executor</label>
+                <input type="text" name="executor" class="form-control" id="input-executor" placeholder="Executor">
+              </div>
+
+              <div class="form-group">
+                <label>Executor Parameter</label>
+                <textarea type="text" name="executor_flags" class="form-control" id="input-executor_flags" placeholder=""></textarea>
+                <p class="help-block">executor parameter, e.g. ./run.sh </p>
+              </div>
+
+              <div class="form-group">
+                <label >Executor Uri</label>
+                <input type="text" name="uris" class="form-control" id="input-uris" placeholder="">
+                <p class="help-block">executo URI, support HDFS, HTTP</p>
+              </div>
+
+              <div class="form-group">
+                <label>Scheduler</label>
+                <input type="text" name="schedule" class="form-control" id="input-schedule" placeholder="">
+                <p class="help-block">crontab format</p>
+              </div>
+
+              <div class="form-group">
+                <label>WebHook Url</label>
+                <input type="text" name="hook" class="form-control" id="input-hook" placeholder="">
+                <p class="help-block">Post a request to this url when job status changed</p>
+              </div>
+
+              <div class="form-group">
+                <label>Owner</label>
+                <input type="text" name="owner" class="form-control" id="input-owner" placeholder="">
+                <p class="help-block">Your name</p>
+              </div>
+
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            <input type="submit" class="btn btn-primary" value="Save"/>
+          </div>
+        </form>
+        </div>
+      </div>
+    </div>
+    <!-- end of job modal  -->
+
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-sm-3 col-md-2 sidebar">
+          <ul class="nav nav-sidebar">
+            <li class="active"><a href="/v2/job">Jobs</a></li>
+            <li><a href="/v2/status">Task Status</a></li>
+            <li><a href="#">History</a></li>
+          </ul>
+        </div>
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+          <h4 class="pull-left"> Jobs </h4>
+          <button class="btn btn-primary pull-right new-btn"> Create New Job </button>
+          <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Executor</th>
+                        <th>Owner</th>
+                        <th>Create At</th>
+                        <th>Last Status</th>
+                        <th>Last Success Time</th>
+                        <th>Last Task ID</th>
+                        <th></th>
+                    </tr>
+                </thead>
+              <tbody>
+                {{ range .jobs }}
+                    <tr id="job-{{ .Id }}">
+                        <td>{{ .Id }}</td>
+                        <td><a href="/v2/status?f_job_name={{ .Name }}">{{ .Name }}</a></td>
+                        <td>{{ .Executor }}</td>
+                        <td><a href="/v2/job?f_owner={{ .Owner }}">{{ .Owner }}</a></td>
+                        <td>{{ ts_to_date .CreateTs }}</td>
+
+                        <td><a href="/v2/status?f_id={{ .LastTaskId }}"><span class="label {{if eq .LastStatus "READY" }} label-primary  {{ else if eq .LastStatus "TASK_RUNNING" }} label-primary {{ else if eq .LastStatus "TASK_FINISHED" }} label-success {{ else }} label-danger {{ end }}">{{ .LastStatus }}</span></a> </td>
+                        <td>{{ ts_to_date .LastSuccessTs }}</td>
+                        <td><a href="/v2/status?f_id={{ .LastTaskId }}">{{ .LastTaskId }}</a></td>
+                        <td>
+                            <a class="edit-btn" href="javascript:void(0)" data-id={{ .Id }}>Edit</a> |
+                            <a class="remove-btn" href="javascript:void(0)" data-id={{ .Id }}>Remove</a> |
+                            <a class="run-btn" href="javascript:void(0)" data-id={{ .Id }}>Run</a></td>
+                    </tr>
+                {{ end }}
+              </tbody>
+            </table>
+            <ul class="pagination pagination-sm">
+              {{ range $idx, $element := .max_page }}
+                {{ $page := add $idx 1 }}
+                <li class="{{ if eq $page $.cur_page }}active{{ end }}"><a href="javascript:void(0)" class="go-page" data-page={{ $page }} data-limit={{ $.limit }}>{{ $page }}</a></li>
+              {{ end }}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="/components/jquery/jquery.js"></script>
+    <script src="/components/bootstrap/bootstrap.min.js"></script>
+    <script src="/v2/js/utils.js"></script>
+    <script src="/v2/js/job.js"></script>
+  </body>
+</html>
+
