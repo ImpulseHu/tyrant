@@ -44,13 +44,15 @@ $(document).ready(function(){
       url = '/job/' + $('#job-modal').data('id');
       type = 'put';
     }
+    var job = $(this).serializeObject();
+    job.owner = getUsername();
 
     $.ajax({
       url : url,
       type: type,
       contentType: 'application/json',
       processData: false,
-      data : JSON.stringify($(this).serializeObject()),
+      data : JSON.stringify(job),
       success: function(e) {
         e = JSON.parse(e)
         if (e.ret == 0) {
