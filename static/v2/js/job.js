@@ -74,6 +74,7 @@ $(document).ready(function(){
         $(o).val('');
       }
     });
+    $('#input-name').val(getUsername());
 
   })
 

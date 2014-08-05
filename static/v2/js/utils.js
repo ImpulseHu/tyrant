@@ -17,3 +17,9 @@ var changeURLPar = function(destiny, par, par_value) {
   return destiny+'\n'+par+'\n'+par_value;
 }
 
+function getUsername() {
+    var match = document.cookie.match(new RegExp("username=([^;]+)"));
+    if (match) {
+        return match[1];
+    }
+}
