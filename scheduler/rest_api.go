@@ -256,6 +256,23 @@ func taskList() (int, string) {
 	return responseSuccess(nil)
 }
 
+func getTaskInfo(params martini.Params, user User, r render.Render) {
+	id := params["id"]
+	if len(id) == 0 {
+		r.Error(http.StatusBadRequest)
+		return
+	}
+
+	task, err := GetTaskByTaskId(id)
+	if err != nil {
+		log.Debug(err)
+		r.Error(http.StatusInternalServerError)
+		return
+	}
+
+	r.JSON(200, task)
+}
+
 func taskKill(params martini.Params, user User) string {
 	id := params["id"]
 	task, err := GetTaskByTaskId(id)
@@ -464,6 +481,7 @@ func (srv *Server) Serve() {
 	m.Post("/job/run/:id", jobRun)
 	m.Delete("/job/:id", jobRemove)
 	m.Put("/job/:id", jobUpdate)
+	m.Get("/task/:id", getTaskInfo)
 
 	// V2 APIs
 	m.Get("/v2/job", jobPageV2)
